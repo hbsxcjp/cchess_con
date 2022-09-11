@@ -21,10 +21,9 @@ namespace cchess_con
 
         public Piece? Piece { get; set; }
 
-        public char Char { get { return Piece != null ? Piece.Char : '_'; } }
+        public char Char { get { return Piece != null ? Piece.Char : NullChar; } }
 
-        public char Name { get { return Piece != null ? Piece.PrintName() : '　'; } }
-
+        public const char NullChar = '_';
     }
 
 }

@@ -20,6 +20,36 @@ namespace cchess_con
 
         public PieceColor BottomColor { get; set; }
 
+        public string? GetFEN()
+        {
+            string fen = "";
+            for(int row = 0;row < RowNum;row++)
+            {
+                string line = "";
+                int num = 0;
+                for(int col = 0;col < ColNum;col++)
+                {
+                    char? ch = _seats?[row, col]?.Char;
+                    if(ch == Seat.NullChar)
+                        num++;
+                    else {
+                        if(num != 0)
+                        {
+                            line += string.Format($"{num}");
+                            num = 0;
+                        }
+                        line += ch;
+                    }
+                }
+                if(num != 0)
+                    line += string.Format($"{num}");
+
+                fen = line + FENSplitChar + fen;
+            }
+
+            return fen?.Remove(fen.Length - 1);
+        }
+
         public bool SetFEN(string fen)
         {
             var fenArray = fen.Split(FENSplitChar);
@@ -50,21 +80,26 @@ namespace cchess_con
                 int col = 0;
                 foreach(char ch in fenArray[row])
                 {
-                    var seat = _seats?[row, col++];
+                    if(ch.CompareTo('A') < 0)
+                    {
+                        col += ch - '0';
+                        continue;
+                    }
+
+                    var seat = _seats?[SymmetryRow(row), col++];
                     if(seat == null) 
                         return false;
 
                     seat.Piece = getPiece(ch);
                 }
-
             }
 
             return true;
         }
 
 
-        //static public int SymmetryRow(int row) { return RowNum - 1 - row; }
-        //static public int SymmetryCol(int col) { return ColNum - 1 - col; }
+        static public int SymmetryRow(int row) { return RowNum - 1 - row; }
+        static public int SymmetryCol(int col) { return ColNum - 1 - col; }
 
         public string PiecesString()
         {
@@ -88,18 +123,71 @@ namespace cchess_con
             return result;
         }
 
-        public string SeatsString()
+        public string? ShowString(bool hasEdge)
         {
-            string result = "";
+            // 棋盘上边标识字符串
+            string[] preStr = {
+@"　　　　　　　黑　方　　　　　　　
+１　２　３　４　５　６　７　８　９
+",
+@"　　　　　　　红　方　　　　　　　
+一　二　三　四　五　六　七　八　九
+"
+            };
+
+            // 文本空棋盘
+            StringBuilder textBlankBoard = new StringBuilder(
+@"┏━┯━┯━┯━┯━┯━┯━┯━┓
+┃　│　│　│╲│╱│　│　│　┃
+┠─┼─┼─┼─╳─┼─┼─┼─┨
+┃　│　│　│╱│╲│　│　│　┃
+┠─╬─┼─┼─┼─┼─┼─╬─┨
+┃　│　│　│　│　│　│　│　┃
+┠─┼─╬─┼─╬─┼─╬─┼─┨
+┃　│　│　│　│　│　│　│　┃
+┠─┴─┴─┴─┴─┴─┴─┴─┨
+┃　　　　　　　　　　　　　　　┃
+┠─┬─┬─┬─┬─┬─┬─┬─┨
+┃　│　│　│　│　│　│　│　┃
+┠─┼─╬─┼─╬─┼─╬─┼─┨
+┃　│　│　│　│　│　│　│　┃
+┠─╬─┼─┼─┼─┼─┼─╬─┨
+┃　│　│　│╲│╱│　│　│　┃
+┠─┼─┼─┼─╳─┼─┼─┼─┨
+┃　│　│　│╱│╲│　│　│　┃
+┗━┷━┷━┷━┷━┷━┷━┷━┛
+");
+            // 边框粗线
+
+            // 棋盘下边标识字符串
+            string[] sufStr = {
+@"九　八　七　六　五　四　三　二　一
+　　　　　　　红　方　　　　　　　
+",
+@"９　８　７　６　５　４　３　２　１
+　　　　　　　黑　方　　　　　　　
+"
+    };
+
             for(int r = 0;r < RowNum;r++)
             {
                 for(int c = 0;c < ColNum;c++)
-                    result += _seats?[r, c]?.Name;
-
-                result += '\n';
+                {
+                    var seat = _seats?[r, c];
+                    var piece = seat?.Piece;
+                    if(piece != null)
+                    {
+                        int idx = SymmetryRow(r) * 2 * (ColNum * 2) + c * 2;
+                        textBlankBoard[idx] = piece.PrintName();
+                    }
+                }
             }
 
-            return result;
+            if(!hasEdge)
+                return textBlankBoard.ToString();
+
+            int index = (int)BottomColor;
+            return preStr[index] + textBlankBoard.ToString() + sufStr[index];
         }
 
         private void InitPieces()

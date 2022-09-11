@@ -8,4 +8,5 @@ Console.WriteLine("Hello, World!");
 
 Board board = new Board();
 Console.WriteLine(board.PiecesString());
-Console.WriteLine(board.SeatsString());
+Console.WriteLine(board.ShowString(true));
+Console.WriteLine(board.GetFEN());
