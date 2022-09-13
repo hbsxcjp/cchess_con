@@ -1,7 +1,10 @@
-﻿//See https://aka.ms/new-console-template for more information
+//See https://aka.ms/new-console-template for more information
 using cchess_con;
 
-const string output = @"C:\Users\hbsxc\Documents\";
+const string output = @"D:\8jchenjp\";
+
+TestBoard();
+
 static void TestBoard() 
 {
     string[] fens = {
@@ -56,4 +59,3 @@ static void TestBoard()
     }
 }
 
-TestBoard();
