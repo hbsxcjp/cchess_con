@@ -39,6 +39,7 @@ static void TestBoard()
     using(StreamWriter sw = File.CreateText(path))
     {
         sw.WriteLine(board.PiecesString());
+        sw.WriteLine(board.PutCoordString());
         List<ChangeType> cts = new() {
             ChangeType.NoChange,
             ChangeType.EXCHANGE,

@@ -18,24 +18,23 @@ namespace cchess_con
 
         public int Row { get; }
         public int Col { get; }
-        public KeyValuePair<int, int> Coord { get { return new(Row, Col); } }
-
-        public bool IsNull { get { return this == NullSeat; } }
-
         public Piece Piece
         {
             get { return _piece; }
             set
             {
-                if(IsNull) 
-                    return;
-
-                if(!_piece.IsNull)
-                    _piece.Seat = NullSeat;
+                _piece.Seat = NullSeat;
 
                 value.Seat = this;
                 _piece = value;
             }
+        }
+
+        public bool IsNull { get { return this == NullSeat; } }
+        public bool IsBottom { get { return Row << 1 < RowNum; } }
+        static public bool IsValid(int row, int col)
+        {
+            return (row >= 0 && row < RowNum && col >= 0 && col < ColNum);
         }
 
         static public List<KeyValuePair<int, int>> AllCoord()
@@ -55,9 +54,7 @@ namespace cchess_con
             toSeat.Piece = piece; // 清空toSeat与ToPiece的联系
         }
 
-        public bool IsBottom { get { return Row << 1 < RowNum; } }
-
-        static public readonly Seat NullSeat = new(new(-1,-1));
+        static public readonly Seat NullSeat = new(new(-1, -1));
 
         public const int RowNum = 10;
         public const int ColNum = 9;

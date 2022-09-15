@@ -29,22 +29,44 @@ namespace cchess_con
 
         public PieceColor BottomColor { get; set; }
 
-        public bool IsNull(int row, int col)
+        public Seat GetSeat(int row, int col)
         {
-            return _seats[row, col].IsNull;
+            return _seats[row, col];
         }
-        public bool IsColor(int row, int col, PieceColor color)
-        {
-            return _seats[row, col].Piece.Color == color;
-        }
-        //public List<Seat> getALLSeat()
-        //{
-        //    List<Seat> seats = new();
-        //    foreach(var seat in _seats)
-        //        seats.Add(seat);
 
-        //    return seats;
-        //}
+        public bool IsKingMeetKilled(PieceColor color)
+        {
+            // 将帅是否对面
+            var redKingSeat = GetKingSeat(PieceColor.RED);
+            var blackKingSeat = GetKingSeat(PieceColor.BLACK);
+            int col = redKingSeat.Col;
+            if(col == blackKingSeat.Col)
+            {
+                int redRow = redKingSeat.Row, blackRow = blackKingSeat.Row;
+                int lowRow = Math.Min(redRow, blackRow),
+                    upRow = Math.Max(redRow, blackRow);
+                bool meet = true;
+                for(int row = lowRow + 1;row < upRow;++row)
+                    if(!GetSeat(row, col).IsNull)
+                    {
+                        meet = false;
+                        break;
+                    }
+
+                if(meet)
+                    return true;
+            }
+
+            // 某一方是否正在被将军
+            Seat kingSeat = GetKingSeat(color);
+            KeyValuePair<int, int> kingCoord = new(kingSeat.Row, kingSeat.Col);
+            var otherColor = color == PieceColor.RED ? PieceColor.BLACK : PieceColor.RED;
+            foreach(var piece in LivePieces(otherColor))
+                if(piece.MoveCoord(this).Contains(kingCoord))
+                    return true;
+
+            return false;
+        }
 
         public void Reset()
         {
@@ -87,9 +109,7 @@ namespace cchess_con
         {
             Piece getPiece(char ch)
             {
-                foreach(
-                    var kindPieces in _pieces[(int)(ch < 'a' ? PieceColor.RED : PieceColor.BLACK)]
-                )
+                foreach(var kindPieces in _pieces[(int)(ch < 'a' ? PieceColor.RED : PieceColor.BLACK)])
                     foreach(var piece in kindPieces)
                         if(piece.Char == ch && piece.Seat.IsNull)
                             return piece;
@@ -197,6 +217,34 @@ namespace cchess_con
 
             return result;
         }
+        public string PutCoordString()
+        {
+            string result = "";
+            foreach(var colorPieces in _pieces)
+            {
+                foreach(var kindPieces in colorPieces)
+                {
+                    foreach(var piece in kindPieces)
+                    {
+                        result += piece.ShowString + " PutCoord: ";
+                        int count = 0;
+                        foreach(var coord in piece.PutCoord(piece.Color == BottomColor))
+                        {
+                            result += coord.ToString();
+                            count++;
+                        }
+
+                        result += String.Format($"【{count}】\n", count);
+                    }
+
+                    result += '\n';
+                }
+
+                result += '\n';
+            }
+
+            return result;
+        }
 
         public string ShowString(bool hasEdge)
         {
@@ -270,51 +318,24 @@ namespace cchess_con
 
         private List<Piece> LivePieces()
         {
-            List<Piece> pieces = new();
-            foreach(var colorPieces in _pieces)
-                foreach(var kindPieces in colorPieces)
-                    foreach(var piece in kindPieces)
-                        if(!piece.Seat.IsNull)
-                            pieces.Add(piece);
-
-            return pieces;
+            return FilterPiece(checkLive, PieceColor.RED, PieceKind.KING, 0);
         }
-
         private List<Piece> LivePieces(PieceColor color)
         {
-            List<Piece> pieces = new();
-            foreach(var piece in LivePieces())
-                if(piece.Color == color)
-                    pieces.Add(piece);
-
-            return pieces;
+            return FilterPiece(checkLiveColor, color, PieceKind.KING, 0);
         }
-
         private List<Piece> LivePieces(PieceColor color, PieceKind kind)
         {
-            List<Piece> pieces = new();
-            foreach(var piece in LivePieces(color))
-                if(piece.Kind == kind)
-                    pieces.Add(piece);
-
-            return pieces;
+            return FilterPiece(checkLiveColorKind, color, kind, 0);
         }
-
         private List<Piece> LivePieces(PieceColor color, char name)
         {
-            return LivePieces(color, GetKind(name));
+            return FilterPiece(checkLiveColorKind, color, GetKind(name), 0);
         }
-
         private List<Piece> LivePieces(PieceColor color, char name, int col)
         {
-            List<Piece> pieces = new();
-            foreach(var piece in LivePieces(color, name))
-                if(piece.Seat.Col == col)
-                    pieces.Add(piece);
-
-            return pieces;
+            return FilterPiece(checkLiveColorKindCol, color, GetKind(name), col);
         }
-
         private List<Seat> LiveSeats_SortPawn(PieceColor color, bool isBottom)
         {
             // 最多5个兵, 按列、行建立映射，按列、行排序
@@ -343,6 +364,36 @@ namespace cchess_con
                 seats.Add(piece.Seat);
 
             return seats;
+        }
+
+        private delegate bool CheckPiece(Piece piece, PieceColor color, PieceKind kind, int col);
+        static private readonly CheckPiece checkLive = delegate (Piece piece, PieceColor color, PieceKind kind, int col)
+        {
+            return !piece.Seat.IsNull;
+        };
+        static private readonly CheckPiece checkLiveColor = delegate (Piece piece, PieceColor color, PieceKind kind, int col)
+        {
+            return !piece.Seat.IsNull && piece.Color == color;
+        };
+        static private readonly CheckPiece checkLiveColorKind = delegate (Piece piece, PieceColor color, PieceKind kind, int col)
+        {
+            return !piece.Seat.IsNull && piece.Color == color && piece.Kind == kind;
+        };
+        static private readonly CheckPiece checkLiveColorKindCol = delegate (Piece piece, PieceColor color, PieceKind kind, int col)
+        {
+            return (!piece.Seat.IsNull && piece.Color == color
+            && piece.Kind == kind && piece.Seat.Col == col);
+        };
+        private List<Piece> FilterPiece(CheckPiece checkFun, PieceColor color, PieceKind kind, int col)
+        {
+            List<Piece> pieces = new();
+            foreach(var colorPieces in _pieces)
+                foreach(var kindPieces in colorPieces)
+                    foreach(var piece in kindPieces)
+                        if(checkFun(piece, color, kind, col))
+                            pieces.Add(piece);
+
+            return pieces;
         }
 
         private PieceKind GetKind(char name)
