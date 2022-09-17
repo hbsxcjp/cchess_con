@@ -53,8 +53,8 @@ static void TestBoard()
             {
                 board.ChangeLayout(ct);
                 sw.WriteLine(board.GetFEN());
-                sw.WriteLine(board.ShowString(true));
-
+                sw.WriteLine(board.ToString());
+                sw.WriteLine(board.CanMoveCoordString());
             }
         }
     }

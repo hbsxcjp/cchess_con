@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Metrics;
+using System.Drawing;
 using System.Linq;
 using System.Reflection;
+using System.Reflection.Metadata.Ecma335;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -29,49 +32,119 @@ namespace cchess_con
 
         public PieceColor BottomColor { get; set; }
 
-        public Seat GetSeat(int row, int col)
+        public Seat this[int row, int col]
         {
-            return _seats[row, col];
+            get
+            {
+                return _seats[row, col];
+            }
+            private set
+            {
+                _seats[row, col] = value;
+            }
+        }
+        public Seat this[Coord coord]
+        {
+            get
+            {
+                return this[coord.row, coord.col];
+            }
+            private set
+            {
+                this[coord.row, coord.col] = value;
+            }
         }
 
-        public bool IsKingMeetKilled(PieceColor color)
+        public bool IsColor(Coord coord, PieceColor color)
         {
+            return this[coord].Piece.Color == color;
+        }
+        public bool IsKilled(PieceColor color)
+        {
+            var otherColor = color == PieceColor.RED ? PieceColor.BLACK : PieceColor.RED;
+            Seat kingSeat = GetKingSeat(color);
+            int row = kingSeat.Row, col = kingSeat.Col;
             // 将帅是否对面
-            var redKingSeat = GetKingSeat(PieceColor.RED);
-            var blackKingSeat = GetKingSeat(PieceColor.BLACK);
-            int col = redKingSeat.Col;
-            if(col == blackKingSeat.Col)
+            bool isKingMeet()
             {
-                int redRow = redKingSeat.Row, blackRow = blackKingSeat.Row;
-                int lowRow = Math.Min(redRow, blackRow),
-                    upRow = Math.Max(redRow, blackRow);
-                bool meet = true;
-                for(int row = lowRow + 1;row < upRow;++row)
-                    if(!GetSeat(row, col).IsNull)
-                    {
-                        meet = false;
-                        break;
-                    }
+                var otherKingSeat = GetKingSeat(otherColor);
+                if(col != otherKingSeat.Col)
+                    return false;
 
-                if(meet)
-                    return true;
+                int otherRow = otherKingSeat.Row;
+                int lowRow = Math.Min(row, otherRow),
+                    upRow = Math.Max(row, otherRow);
+                for(int r = lowRow + 1;r < upRow;++r)
+                    if(!this[r, col].IsNull)
+                        return false;
+
+                return true;
             }
 
             // 某一方是否正在被将军
-            Seat kingSeat = GetKingSeat(color);
-            KeyValuePair<int, int> kingCoord = new(kingSeat.Row, kingSeat.Col);
-            var otherColor = color == PieceColor.RED ? PieceColor.BLACK : PieceColor.RED;
-            foreach(var piece in LivePieces(otherColor))
-                if(piece.MoveCoord(this).Contains(kingCoord))
-                    return true;
+            bool isKilled()
+            {
+                Coord kingCoord = new(row, col);
+                foreach(var piece in LivePieces(otherColor))
+                    if(piece.MoveCoord(this).Contains(kingCoord))
+                        return true;
 
-            return false;
+                return false;
+            }
+
+            return isKingMeet() || isKilled();
         }
+        public bool IsFailed(PieceColor color)
+        {
+            foreach(var piece in LivePieces(color))
+                if(CanMoveCoord(piece.Seat.Coord).Count > 0)
+                    return false;
 
+            return true;
+        }
+        public Dictionary<Coord, List<Coord>> CanMoveCoord(PieceColor color)
+        {
+            Dictionary<Coord, List<Coord>> fromCoordToCoords = new();
+            foreach(var piece in LivePieces(color))
+            {
+                var fromCoord = piece.Seat.Coord;
+                //var coords = CanMoveCoord(fromCoord);
+                //if(coords.Count > 0)
+                //    fromCoordToCoords[fromCoord] = coords;
+                fromCoordToCoords[fromCoord] = CanMoveCoord(fromCoord);
+            }
+
+            return fromCoordToCoords;
+        }
+        // 可移动位置, 排除将帅对面、被将军的位置
+        public List<Coord> CanMoveCoord(Coord fromCoord)
+        {
+            List<Coord> coords = new();
+            var fromSeat = this[fromCoord];
+            if(fromSeat.IsNull)
+                return coords;
+
+            var color = fromSeat.Piece.Color;
+            foreach(var toCoord in fromSeat.Piece.MoveCoord(this))
+            {
+                Seat toSeat = this[toCoord];
+                Piece toPiece = toSeat.Piece;
+                // 查询能走的位置时，如是对方将帅的位置则可走，不用判断是否被将军（因为判断是否被将军，会直接走棋吃子）
+                if(toPiece.Kind == PieceKind.KING)
+                    continue;
+
+                fromSeat.MoveTo(toSeat, Piece.NullPiece);
+                if(!IsKilled(color))
+                    coords.Add(toCoord);
+                toSeat.MoveTo(fromSeat, toPiece);
+            }
+
+            return coords;
+        }
         public void Reset()
         {
             foreach(var seat in _seats)
-                seat.Piece = Piece.NullPiece;
+                seat.SetNull();
         }
 
         public string GetFEN()
@@ -83,8 +156,8 @@ namespace cchess_con
                 int num = 0;
                 for(int col = 0;col < Seat.ColNum;col++)
                 {
-                    var piece = _seats[row, col].Piece;
-                    if(piece.IsNull)
+                    var seat = this[row, col];
+                    if(seat.IsNull)
                         num++;
                     else
                     {
@@ -93,7 +166,7 @@ namespace cchess_con
                             line += string.Format($"{num}");
                             num = 0;
                         }
-                        line += piece.Char;
+                        line += seat.Piece.Char;
                     }
                 }
                 if(num != 0)
@@ -111,7 +184,7 @@ namespace cchess_con
             {
                 foreach(var kindPieces in _pieces[(int)(ch < 'a' ? PieceColor.RED : PieceColor.BLACK)])
                     foreach(var piece in kindPieces)
-                        if(piece.Char == ch && piece.Seat.IsNull)
+                        if(piece.Char == ch && !piece.InSeat)
                             return piece;
 
                 return Piece.NullPiece;
@@ -129,7 +202,7 @@ namespace cchess_con
                     if(ch.CompareTo('A') < 0)
                         col += ch - '0';
                     else
-                        _seats[SymmetryRow(row), col++].Piece = getPiece(ch);
+                        this[SymmetryRow(row), col++].Piece = getPiece(ch);
             }
 
             SetBottomColor();
@@ -155,11 +228,11 @@ namespace cchess_con
             Seat GetChangeSeat(Seat seat, ChangeType ct)
             {
                 if(ct == ChangeType.SYMMETRY_H)
-                    return _seats[seat.Row, SymmetryCol(seat.Col)];
+                    return this[seat.Row, SymmetryCol(seat.Col)];
                 else if(ct == ChangeType.SYMMETRY_V)
-                    return _seats[SymmetryRow(seat.Row), seat.Col];
+                    return this[SymmetryRow(seat.Row), seat.Col];
                 else if(ct == ChangeType.ROTATE)
-                    return _seats[SymmetryRow(seat.Row), SymmetryCol(seat.Col)];
+                    return this[SymmetryRow(seat.Row), SymmetryCol(seat.Col)];
 
                 return seat;
             }
@@ -169,10 +242,10 @@ namespace cchess_con
                 Dictionary<Seat, Piece> seatPieces = new();
                 foreach(var seat in _seats)
                 {
-                    if(!seat.Piece.IsNull)
+                    if(!seat.IsNull)
                         seatPieces.Add(seat, GetOtherPiece(seat.Piece));
 
-                    seat.Piece = Piece.NullPiece;
+                    seat.SetNull();
                 }
 
                 foreach(var seatPiece in seatPieces)
@@ -185,18 +258,127 @@ namespace cchess_con
                 for(int row = 0;row < maxRow;++row)
                     for(int col = 0;col < maxCol;++col)
                     {
-                        Seat seat = _seats[row, col];
+                        Seat seat = this[row, col];
                         Seat changedSeat = GetChangeSeat(seat, ct);
                         Piece piece = seat.Piece;
                         Piece changePiece = changedSeat.Piece;
 
-                        changedSeat.Piece = Piece.NullPiece; // 切断联系
+                        changedSeat.SetNull(); // 切断联系
                         seat.Piece = changePiece;
                         changedSeat.Piece = piece;
                     }
             }
 
             return SetBottomColor();
+        }
+
+        public string GetZhStr(CoordPair coordPair)
+        {
+            string zhStr = "";
+            Seat fromSeat = this[coordPair.FromCoord],
+                toSeat = this[coordPair.ToCoord];
+            if(fromSeat.IsNull)
+                return zhStr;
+
+            Piece fromPiece = fromSeat.Piece;
+            PieceColor color = fromPiece.Color;
+            PieceKind kind = fromPiece.Kind;
+            char name = fromPiece.Name;
+            int fromRow = fromSeat.Row, fromCol = fromSeat.Col,
+                toRow = toSeat.Row, toCol = toSeat.Col;
+            bool isSameRow = fromRow == toRow, isBottom = fromSeat.IsBottom;
+            var pieces = LivePieces(color, kind, fromCol);
+            int count = pieces.Count;
+            if(count > 1 && kind > PieceKind.BISHOP)
+            {
+                if(kind == PieceKind.PAWN)
+                    pieces = LivePieces(color, PieceKind.PAWN);
+
+                pieces.Sort(new PieceColFirstComp());
+                int index = pieces.IndexOf(fromPiece);
+                if(isBottom)
+                    index = count - 1 - index;
+
+                zhStr = string.Format($"{PreChars(count)[index]}{name}");
+            }
+            else
+            {  //将帅, 仕(士),相(象): 不用“前”和“后”区别，因为能退的一定在前，能进的一定在后
+                char colChar = NumChars(color)[isBottom ? SymmetryCol(fromCol) : fromCol];
+                zhStr = string.Format($"{name}{colChar}");
+            }
+
+            char movChar = ("退平进")[isSameRow ? 1 : (isBottom == toRow > fromRow ? 2 : 0)];
+            char toNumColChar = !isSameRow && IsLinePiece(kind)
+                ? NumChars(color)[Math.Abs(fromRow - toRow) - 1]
+                : NumChars(color)[isBottom ? SymmetryCol(toCol) : toCol];
+            zhStr += movChar + toNumColChar;
+            //if(GetCoordPair(zhStr) != coordPair)
+                //throw new Exception("GetCoordPair(zhStr) != coordPair ?");
+
+            return zhStr;
+        }
+        public CoordPair GetCoordPair(string zhStr)
+        {
+            CoordPair coordPair = new();
+            if(zhStr.Length != 4)
+                return coordPair;
+
+            PieceColor color = RedNumChars.Contains(zhStr[3]) ? PieceColor.RED : PieceColor.BLACK;
+            bool isBottom = color == BottomColor;
+            int index = 0,
+                movDir = ("退平进".IndexOf(zhStr[2]) - 1) * (isBottom ? 1 : -1);
+
+            List<Piece> pieces;
+            PieceKind kind = GetKind(zhStr[0]);
+            if(kind != PieceKind.NoKind)
+            {   // 首字符为棋子名
+                int fromCol = NumChars(color).IndexOf(zhStr[1]);
+                if(isBottom)
+                    fromCol = SymmetryCol(fromCol);
+
+                pieces = LivePieces(color, kind, fromCol);
+                if(pieces.Count <= 1)
+                    throw new Exception("pieces.Count <= 1 ?");
+
+                //# 排除：士、象同列时不分前后，以进、退区分棋子。移动方向为退时，修正index
+                index = (pieces.Count == 2 && movDir == -1) ? 1 : 0; //&& isAdvBish(name)
+            }
+            else
+            {
+                kind = GetKind(zhStr[1]);
+                pieces = LivePieces(color, kind);
+                index = PreChars(pieces.Count).IndexOf(zhStr[0]);
+                if(isBottom)
+                    index = pieces.Count - 1 - index;
+            }
+            if(index == pieces.Count)
+                throw new Exception("index == pieces.Count ?");
+            pieces.Sort(new PieceColFirstComp());
+
+            coordPair.FromCoord = pieces[index].Seat.Coord;
+            int toNum = NumChars(color).IndexOf(zhStr[3]) + 1,
+                toRow = coordPair.FromCoord.row,
+                toCol = isBottom ? SymmetryCol(toNum - 1) : toNum - 1;
+            if(IsLinePiece(kind))
+            {
+                if(movDir != 0)
+                {
+                    toRow += movDir * toNum;
+                    toCol = coordPair.FromCoord.col;
+                }
+            }
+            else
+            {   // 斜线走子：仕、相、马
+                int colAway = Math.Abs(toCol - coordPair.FromCoord.col);
+                //  相距1或2列
+                int rowInc = IsAdvisorBishop(kind) ? colAway : (colAway == 1 ? 2 : 1);
+                toRow += movDir * rowInc;
+            }
+            coordPair.ToCoord = new(toRow, toCol);
+
+            //if(GetZhStr(coordPair) != zhStr) throw new Exception("GetZhStr(coordPair) != zhStr ?");
+
+            return coordPair;
         }
 
         public string PiecesString()
@@ -207,7 +389,7 @@ namespace cchess_con
                 foreach(var kindPieces in colorPieces)
                 {
                     foreach(var piece in kindPieces)
-                        result += piece.ShowString;
+                        result += piece.ToString;
 
                     result += '\n';
                 }
@@ -226,7 +408,7 @@ namespace cchess_con
                 {
                     foreach(var piece in kindPieces)
                     {
-                        result += piece.ShowString + " PutCoord: ";
+                        result += piece.ToString + " PutCoord: ";
                         int count = 0;
                         foreach(var coord in piece.PutCoord(piece.Color == BottomColor))
                         {
@@ -245,8 +427,29 @@ namespace cchess_con
 
             return result;
         }
+        public string CanMoveCoordString()
+        {
+            string result = "";
+            int total = 0;
+            foreach(var color in new List<PieceColor>() { PieceColor.RED, PieceColor.BLACK })
+            {
+                var fromCoordToCoords = CanMoveCoord(color);
+                foreach(var coordToCoords in fromCoordToCoords)
+                {
+                    result += this[coordToCoords.Key].Piece.ToString + " CanMoveCoord: ";
+                    int count = coordToCoords.Value.Count;
+                    foreach(var coord in coordToCoords.Value)
+                        result += coord.ToString();
 
-        public string ShowString(bool hasEdge)
+                    result += String.Format($"【{count}】\n", count);
+                    total += count;
+                }
+            }
+
+            return result + String.Format($"总计：【{total}】\n", total);
+        }
+
+        public string ToString(bool hasEdge = true)
         {
             // 棋盘上边标识字符串
             string[] preStr =
@@ -296,18 +499,12 @@ namespace cchess_con
 "
             };
 
-            for(int r = 0;r < Seat.RowNum;r++)
-            {
-                for(int c = 0;c < Seat.ColNum;c++)
+            foreach(var seat in _seats)
+                if(!seat.IsNull)
                 {
-                    var piece = _seats[r, c].Piece;
-                    if(!piece.IsNull)
-                    {
-                        int idx = SymmetryRow(r) * 2 * (Seat.ColNum * 2) + c * 2;
-                        textBlankBoard[idx] = piece.PrintName();
-                    }
+                    int idx = SymmetryRow(seat.Row) * 2 * (Seat.ColNum * 2) + seat.Col * 2;
+                    textBlankBoard[idx] = seat.Piece.PrintName();
                 }
-            }
 
             if(!hasEdge)
                 return textBlankBoard.ToString();
@@ -316,74 +513,32 @@ namespace cchess_con
             return preStr[index] + textBlankBoard.ToString() + sufStr[index];
         }
 
-        private List<Piece> LivePieces()
-        {
-            return FilterPiece(checkLive, PieceColor.RED, PieceKind.KING, 0);
-        }
         private List<Piece> LivePieces(PieceColor color)
         {
-            return FilterPiece(checkLiveColor, color, PieceKind.KING, 0);
+            return FilterPiece(delegate (Piece piece, PieceColor color, PieceKind kind, int col)
+            {
+                return piece.InSeat && piece.Color == color;
+            },
+                color, PieceKind.KING, 0);
         }
         private List<Piece> LivePieces(PieceColor color, PieceKind kind)
         {
-            return FilterPiece(checkLiveColorKind, color, kind, 0);
-        }
-        private List<Piece> LivePieces(PieceColor color, char name)
-        {
-            return FilterPiece(checkLiveColorKind, color, GetKind(name), 0);
-        }
-        private List<Piece> LivePieces(PieceColor color, char name, int col)
-        {
-            return FilterPiece(checkLiveColorKindCol, color, GetKind(name), col);
-        }
-        private List<Seat> LiveSeats_SortPawn(PieceColor color, bool isBottom)
-        {
-            // 最多5个兵, 按列、行建立映射，按列、行排序
-            SortedDictionary<int, SortedDictionary<int, Seat>> colRowSeats = new();
-            foreach(var seat in LiveSeats(LivePieces(color, PieceKind.PAWN)))
+            return FilterPiece(delegate (Piece piece, PieceColor color, PieceKind kind, int col)
             {
-                // 根据isBottom值排序
-                int col = seat.Col,
-                    row = seat.Row;
-                colRowSeats[isBottom ? -col : col][isBottom ? -row : row] = seat;
-            }
-
-            List<Seat> seats = new();
-            foreach(var colSeats in colRowSeats.Values)
-                // 只选取2个及以上的列
-                if(colSeats.Count > 1)
-                    seats.AddRange(colSeats.Values);
-
-            return seats;
+                return piece.InSeat && piece.Color == color && piece.Kind == kind;
+            },
+                color, kind, 0);
         }
-
-        static private List<Seat> LiveSeats(List<Piece> livePieces)
+        private List<Piece> LivePieces(PieceColor color, PieceKind kind, int col)
         {
-            List<Seat> seats = new();
-            foreach(var piece in livePieces)
-                seats.Add(piece.Seat);
-
-            return seats;
+            return FilterPiece(delegate (Piece piece, PieceColor color, PieceKind kind, int col)
+            {
+                return piece.InSeat && piece.Color == color && piece.Kind == kind && piece.Seat.Col == col;
+            },
+               color, kind, col);
         }
 
         private delegate bool CheckPiece(Piece piece, PieceColor color, PieceKind kind, int col);
-        static private readonly CheckPiece checkLive = delegate (Piece piece, PieceColor color, PieceKind kind, int col)
-        {
-            return !piece.Seat.IsNull;
-        };
-        static private readonly CheckPiece checkLiveColor = delegate (Piece piece, PieceColor color, PieceKind kind, int col)
-        {
-            return !piece.Seat.IsNull && piece.Color == color;
-        };
-        static private readonly CheckPiece checkLiveColorKind = delegate (Piece piece, PieceColor color, PieceKind kind, int col)
-        {
-            return !piece.Seat.IsNull && piece.Color == color && piece.Kind == kind;
-        };
-        static private readonly CheckPiece checkLiveColorKindCol = delegate (Piece piece, PieceColor color, PieceKind kind, int col)
-        {
-            return (!piece.Seat.IsNull && piece.Color == color
-            && piece.Kind == kind && piece.Seat.Col == col);
-        };
         private List<Piece> FilterPiece(CheckPiece checkFun, PieceColor color, PieceKind kind, int col)
         {
             List<Piece> pieces = new();
@@ -394,15 +549,6 @@ namespace cchess_con
                             pieces.Add(piece);
 
             return pieces;
-        }
-
-        private PieceKind GetKind(char name)
-        {
-            foreach(var kindPieces in _pieces[0])
-                if(kindPieces[0].Name == name)
-                    return kindPieces[0].Kind;
-
-            return PieceKind.KING;
         }
 
         private Seat GetKingSeat(PieceColor color) =>
@@ -459,25 +605,28 @@ namespace cchess_con
 
         private void InitSeats()
         {
-            foreach(var rowCol in Seat.AllCoord())
-                _seats[rowCol.Key, rowCol.Value] = new(rowCol);
+            foreach(var coord in Seat.AllCoord())
+                this[coord] = new(coord);
         }
 
-        static private int SymmetryRow(int row)
-        {
-            return Seat.RowNum - 1 - row;
-        }
+        static private int SymmetryRow(int row) => Seat.RowNum - 1 - row;
 
-        static private int SymmetryCol(int col)
-        {
-            return Seat.ColNum - 1 - col;
-        }
+        static private int SymmetryCol(int col) => Seat.ColNum - 1 - col;
+
+        static private PieceKind GetKind(char name) => (PieceKind)("帅仕相马车炮兵将士象马车炮卒".IndexOf(name) % KindNum);
+        static private bool IsLinePiece(PieceKind kind) => (kind == PieceKind.KING || kind == PieceKind.ROOK || kind == PieceKind.CANNON || kind == PieceKind.PAWN);
+        static private bool IsAdvisorBishop(PieceKind kind) => (kind == PieceKind.ADVISOR || kind == PieceKind.BISHOP);
+        static private string NumChars(PieceColor color) => color == PieceColor.RED ? RedNumChars : BlackNumChars;
+        static private string PreChars(int count) => (count == 2 ? "前后" : (count == 3 ? "前中后" : "一二三四五"));
 
         private readonly Piece[][][] _pieces;
         private readonly Seat[,] _seats;
 
         private const char FENSplitChar = '/';
         private const string FEN = "rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR";
+
+        private const string RedNumChars = "一二三四五六七八九";
+        private const string BlackNumChars = "１２３４５６７８９";
 
         private const int ColorNum = 2;
         private const int KindNum = 7;
