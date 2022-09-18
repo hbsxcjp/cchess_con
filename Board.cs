@@ -149,15 +149,26 @@ namespace cchess_con
 
         public string GetFEN()
         {
+            string pieceChars = "";
+            foreach(var seat in _seats)
+                pieceChars += seat.Piece.Char;
+
+            return GetFEN(pieceChars);
+        }
+        static public string GetFEN(string pieceChars)
+        {
             string fen = "";
+            if(pieceChars.Length != Seat.RowNum * Seat.ColNum)
+                return fen;
+
             for(int row = 0;row < Seat.RowNum;row++)
             {
                 string line = "";
-                int num = 0;
+                int num = 0, colIndex = row * Seat.ColNum;
                 for(int col = 0;col < Seat.ColNum;col++)
                 {
-                    var seat = this[row, col];
-                    if(seat.IsNull)
+                    char ch = pieceChars[col + colIndex];
+                    if(ch == Piece.NullPiece.Char)
                         num++;
                     else
                     {
@@ -166,7 +177,7 @@ namespace cchess_con
                             line += string.Format($"{num}");
                             num = 0;
                         }
-                        line += seat.Piece.Char;
+                        line += ch;
                     }
                 }
                 if(num != 0)
@@ -177,7 +188,6 @@ namespace cchess_con
 
             return fen;
         }
-
         public bool SetFEN(string fen)
         {
             Piece getPiece(char ch)
@@ -313,7 +323,7 @@ namespace cchess_con
                 : NumChars(color)[isBottom ? SymmetryCol(toCol) : toCol];
             zhStr += movChar + toNumColChar;
             //if(GetCoordPair(zhStr) != coordPair)
-                //throw new Exception("GetCoordPair(zhStr) != coordPair ?");
+            //throw new Exception("GetCoordPair(zhStr) != coordPair ?");
 
             return zhStr;
         }

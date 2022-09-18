@@ -1,9 +1,7 @@
 //See https://aka.ms/new-console-template for more information
 using cchess_con;
 
-const string output = @"D:\8jchenjp\";
-
-TestBoard();
+const string output = @"C:\program1\gitee\cchess_cs\cchess_con\output\";
 
 static void TestBoard()
 {
@@ -60,3 +58,27 @@ static void TestBoard()
     }
 }
 
+static void TestManual()
+{
+    string[] fileNames = {
+        "01.XQF",
+        "4四量拨千斤.XQF",
+        "第09局.XQF",
+        "布局陷阱--飞相局对金钩炮.XQF",
+        "- 北京张强 (和) 上海胡荣华 (1993.4.27于南京).xqf"
+    };
+
+    string path = output + @"TestManual.txt";
+
+    using(StreamWriter sw = File.CreateText(path))
+    {
+        foreach(string fileName in fileNames)
+        {
+            Manual manual = new Manual(output + fileName);
+            sw.WriteLine(manual.ToString());
+        }
+    }
+}
+
+TestBoard();
+TestManual();
