@@ -46,9 +46,6 @@ namespace cchess_con
         {
             using(FileStream stream = File.OpenRead(fileName))
             {
-                //QDataStream stream(&file);
-                // stream.setByteOrder(QDataStream::LittleEndian);
-
                 //文件标记'XQ'=$5158/版本/加密掩码/ProductId[4], 产品(厂商的产品号)
                 const int PIECENUM = 32;
                 byte[] Signature = new byte[3], Version = new byte[1], headKeyMask = new byte[1],
@@ -120,7 +117,7 @@ namespace cchess_con
 
                 headQiziXY.CopyTo(head_QiziXY, 0);
                 if(Version[0] <= 10)
-                { // version <= 10 兼容1.0以前的版本
+                {   // version <= 10 兼容1.0以前的版本
                     KeyRMKSize = 0;
                     KeyXYf[0] = KeyXYt[0] = 0;
                 }
@@ -135,7 +132,7 @@ namespace cchess_con
                     KeyXY[0] = __calkey(headKeyXY[0], headKeyXY[0]);
                     KeyXYf[0] = __calkey(headKeyXYf[0], KeyXY[0]);
                     KeyXYt[0] = __calkey(headKeyXYt[0], KeyXYf[0]);
-                    KeyRMKSize = (byte)(((headKeysSum[0] * 256 + headKeyXY[0]) % 32000) + 767); // % 65536
+                    KeyRMKSize = (uint)(((headKeysSum[0] * 256 + headKeyXY[0]) % 32000) + 767); // % 65536
                     if(Version[0] >= 12)
                     { // 棋子位置循环移动
                         byte[] Qixy = new byte[PIECENUM];
@@ -170,21 +167,22 @@ namespace cchess_con
                 //QTextCodec* codec = QTextCodec::codecForName("gbk");
                 //auto & _info = manual->getInfoMap();
                 Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-                Encoding codec = Encoding.GetEncoding("gb2312");
+                //Encoding codec = Encoding.GetEncoding("gb2312");
+                Encoding codec = Encoding.GetEncoding("gb18030");
                 string[] result = { "未知", "红胜", "黑胜", "和棋" };
                 string[] typestr = { "全局", "开局", "中局", "残局" };
-                _info["VERSION"] = string.Format($"{Version[0]}");
-                _info["RESULT"] = result[headPlayResult[0]].Trim();
-                _info["TYPE"] = typestr[headCodeA_H[0]].Trim();
-                _info["TITLE"] = codec.GetString(TitleA).Trim();
-                _info["EVENT"] = codec.GetString(Event).Trim();
-                _info["DATE"] = codec.GetString(Date).Trim();
-                _info["SITE"] = codec.GetString(Site).Trim();
-                _info["RED"] = codec.GetString(Red).Trim();
-                _info["BLACK"] = codec.GetString(Black).Trim();
-                _info["OPENING"] = codec.GetString(Opening).Trim();
-                _info["WRITER"] = codec.GetString(RMKWriter).Trim();
-                _info["AUTHOR"] = codec.GetString(Author).Trim();
+                SetInfoValue("VERSION", string.Format($"{Version[0]}"));
+                SetInfoValue("RESULT", result[headPlayResult[0]]);
+                SetInfoValue("TYPE", typestr[headCodeA_H[0]]);
+                SetInfoValue("TITLE", codec.GetString(TitleA).Replace('\0', ' '));
+                SetInfoValue("EVENT", codec.GetString(Event).Replace('\0', ' '));
+                SetInfoValue("DATE", codec.GetString(Date).Replace('\0', ' '));
+                SetInfoValue("SITE", codec.GetString(Site).Replace('\0', ' '));
+                SetInfoValue("RED", codec.GetString(Red).Replace('\0', ' '));
+                SetInfoValue("BLACK", codec.GetString(Black).Replace('\0', ' '));
+                SetInfoValue("OPENING", codec.GetString(Opening).Replace('\0', ' '));
+                SetInfoValue("WRITER", codec.GetString(RMKWriter).Replace('\0', ' '));
+                SetInfoValue("AUTHOR", codec.GetString(Author).Replace('\0', ' '));
                 SetInfoFEN(Board.GetFEN(pieceChars.ToString()), PieceColor.RED); // 可能存在不是红棋先走的情况？
 
                 byte __sub(byte a, byte b) { return (byte)(a - b); }; // 保持为<256
@@ -200,11 +198,11 @@ namespace cchess_con
 
                 uint __getRemarksize()
                 {
-                    byte[] clen = { 0, 0, 0, 0, 0 };
+                    byte[] clen = new byte[4];
                     __readBytes(clen, 4);
                     //return (uint)clen - KeyRMKSize;
-                    BigInteger number = new(clen);
-                    return (uint)number - KeyRMKSize;
+                    //return (uint)(clen[0] + (clen[1] << 8) + (clen[2] << 16) + (clen[3] << 24));
+                    return (uint)(clen[0] + (clen[1] << 8) + (clen[2] << 16) + (clen[3] << 24));
                 };
 
                 byte[] data = new byte[4];
@@ -231,7 +229,7 @@ namespace cchess_con
                     { // # 如果有注解
                         byte[] rem = new byte[2048 * 8];
                         __readBytes(rem, (int)RemarkSize);
-                        return codec.GetString(rem);
+                        return codec.GetString(rem).Replace('\0', ' ');
                     }
                     else
                         return "";
@@ -280,7 +278,8 @@ namespace cchess_con
         }
 
         public string InfoValue(string key) { return _info[key]; }
-        public void SetInfoValue(string key, string value) { _info[key] = value; }
+        public void SetInfoValue(string key, string value) { _info[key] = value.Trim(); }
+
         public void SetInfoFEN(string fen, PieceColor firstColor)
         {
             char color = firstColor == PieceColor.RED ? 'r' : 'b';
@@ -293,9 +292,7 @@ namespace cchess_con
             foreach(var kv in _info)
                 result += string.Format($"[{kv.Key} \"{kv.Value}\"]\n");
 
-            result += '\n' + _manualMove.ToString();
-
-            return result;
+            return result + '\n' + _manualMove.ToString();
         }
 
         private readonly Dictionary<string, string> _info;
@@ -336,9 +333,16 @@ namespace cchess_con
         {
             return _board.SetFEN(fen.Split(' ')[0]);
         }
-        public string? CurRemark { get { return _curMove.Remark; } set { _curMove.Remark = value; } }
+        public string? CurRemark { get { return _curMove.Remark; } set { _curMove.Remark = value?.Trim(); } }
 
-        new public string ToString() { return _board.ToString(); }
+        new public string ToString()
+        {
+            var result = '\n' + _board.ToString();
+            if(_rootMove.Remark?.Length > 0)
+                result += '\n' + _rootMove.Remark;
+
+            return result;
+        }
 
         private void done(Move move) { }
         private void undo(Move move) { }
