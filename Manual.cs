@@ -58,8 +58,8 @@ namespace cchess_con
                     headCodeA_H = new byte[16], TitleA = new byte[64], TitleB = new byte[64],
                     Event = new byte[64], Date = new byte[16], Site = new byte[16], Red = new byte[16], Black = new byte[16],
                     Opening = new byte[64], Redtime = new byte[16], Blktime = new byte[16], Reservedh = new byte[32],
-                    RMKWriter = new byte[16], Author = new byte[16];
-                //, Other[528]{}; // 棋谱评论员/文件的作者
+                    RMKWriter = new byte[16], Author = new byte[16]; //, Other[528]{}; 
+                // 棋谱评论员/文件的作者
                 // 32个棋子的原始位置
                 // 加密的钥匙和/棋子布局位置钥匙/棋谱起点钥匙/棋谱终点钥匙
                 // 用单字节坐标表示, 将字节变为十进制, 十位数为X(0-8)个位数为Y(0-9),
@@ -68,7 +68,7 @@ namespace cchess_con
                 // 黑: 车马象士将士象马车炮炮卒卒卒卒卒 (位置从右到左,
                 // 该谁下 0-红先, 1-黑先/最终结果 0-未知, 1-红胜 2-黑胜, 3-和棋
                 // 从下到上)PlayStepNo[2],
-                //对局类型(开,中,残等)
+                // 对局类型(开,中,残等)
 
                 stream.Read(Signature, 0, 2);
                 stream.Read(Version, 0, 1);
@@ -134,7 +134,7 @@ namespace cchess_con
                     KeyXYt[0] = __calkey(headKeyXYt[0], KeyXYf[0]);
                     KeyRMKSize = (uint)(((headKeysSum[0] * 256 + headKeyXY[0]) % 32000) + 767); // % 65536
                     if(Version[0] >= 12)
-                    { // 棋子位置循环移动
+                    {   // 棋子位置循环移动
                         byte[] Qixy = new byte[PIECENUM];
                         headQiziXY.CopyTo(Qixy, 0);
                         for(int i = 0;i != PIECENUM;++i)
@@ -164,11 +164,8 @@ namespace cchess_con
                         pieceChars[xy % 10 * 9 + xy / 10] = pieChars[i];
                 }
 
-                //QTextCodec* codec = QTextCodec::codecForName("gbk");
-                //auto & _info = manual->getInfoMap();
                 Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-                //Encoding codec = Encoding.GetEncoding("gb2312");
-                Encoding codec = Encoding.GetEncoding("gb18030");
+                Encoding codec = Encoding.GetEncoding("gb18030"); // "gb2312"
                 string[] result = { "未知", "红胜", "黑胜", "和棋" };
                 string[] typestr = { "全局", "开局", "中局", "残局" };
                 SetInfoValue("VERSION", string.Format($"{Version[0]}"));
@@ -200,9 +197,7 @@ namespace cchess_con
                 {
                     byte[] clen = new byte[4];
                     __readBytes(clen, 4);
-                    //return (uint)clen - KeyRMKSize;
-                    //return (uint)(clen[0] + (clen[1] << 8) + (clen[2] << 16) + (clen[3] << 24));
-                    return (uint)(clen[0] + (clen[1] << 8) + (clen[2] << 16) + (clen[3] << 24));
+                    return (uint)(clen[0] + (clen[1] << 8) + (clen[2] << 16) + (clen[3] << 24)) - KeyRMKSize;
                 };
 
                 byte[] data = new byte[4];
@@ -245,29 +240,45 @@ namespace cchess_con
                 // 有左子树
                 //ManualMoveAppendIterator appendIter(manual->manualMove());
                 //while(stream.status() == QDataStream::Status::Ok && !appendIter.over())
+                Stack<Move> preMoves = new();
+                preMoves.Push(_manualMove.CurMove);
+                bool isOther = false;
+                // 当前棋子为根，且有后继棋子时，表明深度搜索已经回退到根，已经没有后续棋子了
+                while(!(_manualMove.CurMove.IsRoot && _manualMove.CurMove.HasAfter(false)))
                 {
-                    //var remark = __readDataAndGetRemark();
+                    var remark = __readDataAndGetRemark();
                     //# 一步棋的起点和终点有简单的加密计算，读入时需要还原
 
-                    //int fcolrow = __sub(frc, (byte)(0X18 + KeyXYf[0])),
-                    //    tcolrow = __sub(trc, (byte)(0X20 + KeyXYt[0]));
-                    //if(fcolrow > 89 || tcolrow > 89)
-                    //    throw new Exception("fcolrow > 89 || tcolrow > 89 ? ");
+                    int fcolrow = __sub(frc, (byte)(0X18 + KeyXYf[0])),
+                        tcolrow = __sub(trc, (byte)(0X20 + KeyXYt[0]));
+                    if(fcolrow > 89 || tcolrow > 89)
+                        throw new Exception("fcolrow > 89 || tcolrow > 89 ? ");
 
-                    //int frow = fcolrow % 10, fcol = fcolrow / 10, trow = tcolrow % 10,
-                    //    tcol = tcolrow / 10;
+                    int frow = fcolrow % 10, fcol = fcolrow / 10, trow = tcolrow % 10,
+                        tcol = tcolrow / 10;
 
-                    //CoordPair coordPair = new(new(frow, fcol), new(trow, tcol));
-                    //bool hasNext = (tag & 0x80) != 0, hasOther = (tag & 0x40) != 0;
+                    CoordPair coordPair = new(new(frow, fcol), new(trow, tcol));
+                    bool hasNext = (tag & 0x80) != 0, hasOther = (tag & 0x40) != 0;
 
-                    //if(coordPair == manual->manualMove()->curCoordPair())
-                    //{
-                    //    qDebug() << file.fileName() << coordPair << remark;
-                    //    if(!remark.isEmpty())
-                    //        manual->manualMove()->setCurRemark(remark);
-                    //}
-                    //else
-                    //    appendIter.append_coordPair(coordPair, remark, hasNext, hasOther);
+                    var curCoordPair = _manualMove.CurMove.CoordPair;
+                    if(curCoordPair.FromCoord.row == frow && curCoordPair.FromCoord.col == fcol
+                        && curCoordPair.ToCoord.row == trow && curCoordPair.ToCoord.col == tcol)
+                    {
+                        Console.WriteLine("Error: " + fileName); //+ coordPair << remark;
+                        if(remark.Length > 0)
+                            _manualMove.CurRemark = remark;
+                    }
+                    else
+                    {
+                        //appendIter.append_coordPair(coordPair, remark, hasNext, hasOther);
+                        _manualMove.AddMove(coordPair, remark, isOther);
+
+                        if(hasNext && hasOther)
+                            preMoves.Push(_manualMove.CurMove);
+
+                        if(!hasNext && !hasOther && preMoves.Count > 0)
+                            _manualMove.CurMove = preMoves.Pop(); // 最后时，将回退到根
+                    }
                 }
             }
         }
@@ -304,50 +315,51 @@ namespace cchess_con
         public ManualMove(RootMove rootMove)
         {
             _board = new();
-            _curMove = rootMove;
             _rootMove = rootMove;
+            CurMove = rootMove;
         }
 
-        public List<Coord> GetCanPutCoords(Piece piece)
-        { return new(); }
-        public List<Coord> GetCanMoveCoords(Coord fromCoord)
-        { return new(); }
+        //public List<Coord> GetCanPutCoords(Piece piece)
+        //{ return new(); }
+        //public List<Coord> GetCanMoveCoords(Coord fromCoord)
+        //{ return new(); }
 
-        public Move AddMove(CoordPair coordPair, string remark)
+        public void AddMove(CoordPair coordPair, string remark, bool isOther)
         {
-            return _curMove.AddAfterMove(coordPair, remark);
+            CurMove = isOther ? CurMove.AddOtherMove(coordPair, remark) : CurMove.AddAfterMove(coordPair, remark);
         }
 
-        public bool GoNext() // 前进
-        { return true; }
-        public bool BackNext() // 本着非变着，则回退一着
-        { return true; }
-        public bool GoOther() // 前进变着
-        { return true; }
-        public bool BackOther() // 回退变着
-        { return true; }
-        public bool GoTo(Move move) // 前进至指定move
-        { return true; }
+        //public bool GoNext() // 前进
+        //{ return true; }
+        //public bool BackNext() // 本着非变着，则回退一着
+        //{ return true; }
+        //public bool GoOther() // 前进变着
+        //{ return true; }
+        //public bool BackOther() // 回退变着
+        //{ return true; }
+        //public bool GoTo(Move move) // 前进至指定move
+        //{ return true; }
+
+        //private void done(Move move) { }
+        //private void undo(Move move) { }
 
         public bool SetBoard(string fen)
         {
             return _board.SetFEN(fen.Split(' ')[0]);
         }
-        public string? CurRemark { get { return _curMove.Remark; } set { _curMove.Remark = value?.Trim(); } }
+
+        public Move CurMove { get; set; }
+        public string? CurRemark { get { return CurMove.Remark; } set { CurMove.Remark = value?.Trim(); } }
 
         new public string ToString()
         {
-            var result = '\n' + _board.ToString();
-            if(_rootMove.Remark?.Length > 0)
-                result += '\n' + _rootMove.Remark;
+            string result = _board.ToString() + '\n' + _rootMove.Remark + '\n';
+            foreach(var move in _rootMove)
+                result += move.ToString();
 
             return result;
         }
 
-        private void done(Move move) { }
-        private void undo(Move move) { }
-
-        private Move _curMove;
         private readonly Board _board;
         private readonly RootMove _rootMove;
     }

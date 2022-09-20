@@ -8,45 +8,86 @@ using System.Threading.Tasks;
 
 namespace cchess_con
 {
+    internal struct MoveData
+    {
+        public MoveData(Move move)
+        {
+            CoordPair coordPair = move.CoordPair;
+            Visible = move.Visible;
+            FromCoordValue = (byte)(coordPair.FromCoord.row << 4 | coordPair.FromCoord.col);
+            ToCoordValue = (byte)(coordPair.ToCoord.row << 4 | coordPair.ToCoord.col);
+            AfterNum = (byte)move.AfterNum;
+            Remark = move.Remark;
+        }
+
+        public bool Visible;
+        public byte FromCoordValue;
+        public byte ToCoordValue;
+        public byte AfterNum;
+        public string? Remark;
+    }
+
     internal class Move
     {
         protected Move()
         {
             Before = null;
-            CoordPair = null;
-            Remark = null;
-            ToPiece = Piece.NullPiece;
 
             Visible = false;
+            //CoordPair = new CoordPair();
+            //Remark = null;
+
+            ToPiece = Piece.NullPiece;
             _AfterMoves = null;
         }
+        protected Move(CoordPair coordPair, string? remark = null) : this()
+        {
+            CoordPair = coordPair;
+            Remark = remark;
+        }
+        protected Move(MoveData moveDate) : this()
+        {
+            Visible = moveDate.Visible;
+            CoordPair = new CoordPair(
+                new Coord(moveDate.FromCoordValue >> 4, moveDate.FromCoordValue & 0x0F),
+                new Coord(moveDate.ToCoordValue >> 4, moveDate.ToCoordValue & 0x0F));
+            Remark = moveDate.Remark;
+        }
 
+        public Move AddAfterMove(Move move)
+        {
+            move.Before = this;
+            (_AfterMoves ??= new()).Add(move);
+            return move;
+        }
+        public Move AddAfterMove(MoveData moveData)
+        {
+            return AddAfterMove(new Move(moveData));
+        }
         public Move AddAfterMove(CoordPair coordPair, string? remark = null)
         {
-            Move move = new()
-            {
-                Before = this,
-                CoordPair = coordPair,
-                Remark = remark
-            };
+            return AddAfterMove(new Move(coordPair, remark));
+        }
 
-            (_AfterMoves ??= new()).Add(move);
+        public Move AddOtherMove(Move move)
+        {
+            if(Before != null)
+                Before.AddAfterMove(move);
+
             return move;
         }
         public Move AddOtherMove(CoordPair coordPair, string? remark = null)
         {
-            if(Before == null)
-                throw new Exception("开始节点不能添加兄弟着法！");
-
-            return Before.AddAfterMove(coordPair, remark);
+            return AddOtherMove(new Move(coordPair, remark));
         }
 
         public Move? Before { get; set; }
-        public CoordPair? CoordPair { get; set; }
-        public string? Remark { get; set; }
-        public Piece ToPiece { get; set; }
         public bool Visible { get; set; }
-        static public bool IsRoot { get { return false; } }
+        public CoordPair CoordPair { get; set; }
+        public string? Remark { get; set; }
+        public int AfterNum { get { return _AfterMoves?.Count ?? 0; } }
+        public Piece ToPiece { get; set; }
+        virtual public bool IsRoot { get { return false; } }
 
         public bool HasAfter(bool enumVisible = true) => AfterMoves(enumVisible) != null;
         public bool HasOther(bool enumVisible = true) => (OtherMoves(enumVisible)?.Count ?? 0) > 0;
@@ -72,6 +113,10 @@ namespace cchess_con
 
             return (moves?.Count ?? 0) == 0 ? null : moves;
         }
+        new public string ToString()
+        {
+            return CoordPair.ToString() + Remark + '\n';
+        }
 
         static private List<Move>? GetMoves(List<Move>? moves, bool enumVisible)
         {
@@ -96,7 +141,7 @@ namespace cchess_con
             EnumVisible = true;
         }
 
-        static new public bool IsRoot { get { return true; } }
+        override public bool IsRoot { get { return true; } }
         static new public bool Visible { get { return true; } }
         public bool EnumVisible { get; set; }
 
@@ -109,7 +154,7 @@ namespace cchess_con
     {
         public MoveEnum(RootMove rootMove)
         {
-            _rootMove = rootMove;
+            RootMove = rootMove;
 
             _curMoves = new();
             _queueMoves = new();
@@ -129,11 +174,13 @@ namespace cchess_con
             _curMoves.Clear();
             _queueMoves.Clear();
 
-            EnqueueAfterMoves(_rootMove);
+            EnqueueAfterMoves(RootMove);
+            DequeueAfterMoves();
         }
 
         object IEnumerator.Current { get { return Current; } }
 
+        public RootMove RootMove { get; }
         public Move Current
         {
             get
@@ -151,7 +198,7 @@ namespace cchess_con
 
         private void EnqueueAfterMoves(Move move)
         {
-            var afterMoves = move.AfterMoves(_rootMove.EnumVisible);
+            var afterMoves = move.AfterMoves(RootMove.EnumVisible);
             if(afterMoves != null)
                 _queueMoves.Enqueue(afterMoves);
         }
@@ -168,8 +215,6 @@ namespace cchess_con
 
             return true;
         }
-
-        private readonly RootMove _rootMove;
 
         private int _position;
         private List<Move> _curMoves;
