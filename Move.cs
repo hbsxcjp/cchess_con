@@ -115,7 +115,7 @@ namespace cchess_con
         }
         new public string ToString()
         {
-            return CoordPair.ToString() + Remark + '\n';
+            return CoordPair.ToString() + Remark;
         }
 
         static private List<Move>? GetMoves(List<Move>? moves, bool enumVisible)
@@ -156,7 +156,7 @@ namespace cchess_con
         {
             RootMove = rootMove;
 
-            _curMoves = new();
+            _afterMoves = new();
             _queueMoves = new();
 
             Reset();
@@ -165,17 +165,19 @@ namespace cchess_con
         public bool MoveNext()
         {
             _position++;
-            return _position < _curMoves.Count || DequeueAfterMoves();
+            if(_position >= _afterMoves.Count)
+                DequeueAfterMoves();
+
+            return _position < _afterMoves.Count;
         }
 
         public void Reset()
         {
             _position = -1;
-            _curMoves.Clear();
+            _afterMoves.Clear();
             _queueMoves.Clear();
 
             EnqueueAfterMoves(RootMove);
-            DequeueAfterMoves();
         }
 
         object IEnumerator.Current { get { return Current; } }
@@ -187,7 +189,7 @@ namespace cchess_con
             {
                 try
                 {
-                    return _curMoves[_position];
+                    return _afterMoves[_position];
                 }
                 catch(IndexOutOfRangeException)
                 {
@@ -203,21 +205,19 @@ namespace cchess_con
                 _queueMoves.Enqueue(afterMoves);
         }
 
-        private bool DequeueAfterMoves()
+        private void DequeueAfterMoves()
         {
             if(_queueMoves.Count == 0)
-                return false;
+                return;
 
             _position = 0;
-            _curMoves = _queueMoves.Dequeue();
-            foreach(var move in _curMoves)
+            _afterMoves = _queueMoves.Dequeue();
+            foreach(var move in _afterMoves)
                 EnqueueAfterMoves(move);
-
-            return true;
         }
 
         private int _position;
-        private List<Move> _curMoves;
+        private List<Move> _afterMoves;
         private readonly Queue<List<Move>> _queueMoves;
     }
 

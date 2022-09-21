@@ -202,7 +202,7 @@ namespace cchess_con
 
                 byte[] data = new byte[4];
                 byte frc = data[0], trc = data[1], tag = data[2];
-                string __readDataAndGetRemark()
+                string? __readDataAndGetRemark()
                 {
                     __readBytes(data, 4);
                     uint RemarkSize = 0;
@@ -222,12 +222,12 @@ namespace cchess_con
                     }
                     if(RemarkSize > 0)
                     { // # 如果有注解
-                        byte[] rem = new byte[2048 * 8];
+                        byte[] rem = new byte[2048 * 2];
                         __readBytes(rem, (int)RemarkSize);
-                        return codec.GetString(rem).Replace('\0', ' ');
+                        return codec.GetString(rem).Replace('\0', ' ').Trim();
                     }
-                    else
-                        return "";
+
+                    return null;
                 }
 
                 stream.Seek(1024, SeekOrigin.Begin);
@@ -244,7 +244,7 @@ namespace cchess_con
                 preMoves.Push(_manualMove.CurMove);
                 bool isOther = false;
                 // 当前棋子为根，且有后继棋子时，表明深度搜索已经回退到根，已经没有后续棋子了
-                while(!(_manualMove.CurMove.IsRoot && _manualMove.CurMove.HasAfter(false)))
+                while(!_manualMove.CurMove.IsRoot || !_manualMove.CurMove.HasAfter(false))
                 {
                     var remark = __readDataAndGetRemark();
                     //# 一步棋的起点和终点有简单的加密计算，读入时需要还原
@@ -265,18 +265,19 @@ namespace cchess_con
                         && curCoordPair.ToCoord.row == trow && curCoordPair.ToCoord.col == tcol)
                     {
                         Console.WriteLine("Error: " + fileName); //+ coordPair << remark;
-                        if(remark.Length > 0)
-                            _manualMove.CurRemark = remark;
+                        _manualMove.CurRemark = remark;
                     }
                     else
                     {
                         //appendIter.append_coordPair(coordPair, remark, hasNext, hasOther);
                         _manualMove.AddMove(coordPair, remark, isOther);
+                        Console.WriteLine("_manualMove.CurMove: " + _manualMove.CurMove.ToString());
 
                         if(hasNext && hasOther)
                             preMoves.Push(_manualMove.CurMove);
 
-                        if(!hasNext && !hasOther && preMoves.Count > 0)
+                        isOther = !hasNext && !hasOther && preMoves.Count > 0;
+                        if(isOther)
                             _manualMove.CurMove = preMoves.Pop(); // 最后时，将回退到根
                     }
                 }
@@ -324,7 +325,7 @@ namespace cchess_con
         //public List<Coord> GetCanMoveCoords(Coord fromCoord)
         //{ return new(); }
 
-        public void AddMove(CoordPair coordPair, string remark, bool isOther)
+        public void AddMove(CoordPair coordPair, string? remark, bool isOther)
         {
             CurMove = isOther ? CurMove.AddOtherMove(coordPair, remark) : CurMove.AddAfterMove(coordPair, remark);
         }
@@ -355,7 +356,7 @@ namespace cchess_con
         {
             string result = _board.ToString() + '\n' + _rootMove.Remark + '\n';
             foreach(var move in _rootMove)
-                result += move.ToString();
+                result += move.ToString() + '\n';
 
             return result;
         }
