@@ -177,6 +177,7 @@ namespace cchess_con
             _afterMoves.Clear();
             _queueMoves.Clear();
 
+            _afterMoves.Add(RootMove);
             EnqueueAfterMoves(RootMove);
         }
 

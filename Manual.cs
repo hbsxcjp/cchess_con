@@ -269,9 +269,8 @@ namespace cchess_con
                     }
                     else
                     {
-                        //appendIter.append_coordPair(coordPair, remark, hasNext, hasOther);
                         _manualMove.AddMove(coordPair, remark, isOther);
-                        Console.WriteLine("_manualMove.CurMove: " + _manualMove.CurMove.ToString());
+                        //Console.WriteLine("_manualMove.CurMove: " + _manualMove.CurMove.ToString());
 
                         if(hasNext && hasOther)
                             preMoves.Push(_manualMove.CurMove);
@@ -304,7 +303,7 @@ namespace cchess_con
             foreach(var kv in _info)
                 result += string.Format($"[{kv.Key} \"{kv.Value}\"]\n");
 
-            return result + '\n' + _manualMove.ToString();
+            return result + _manualMove.ToString() + '\n';
         }
 
         private readonly Dictionary<string, string> _info;
@@ -354,11 +353,16 @@ namespace cchess_con
 
         new public string ToString()
         {
-            string result = _board.ToString() + '\n' + _rootMove.Remark + '\n';
+            string result = _board.ToString();
+            _rootMove.EnumVisible = false;
+            int count = -1; // 去掉根节点
             foreach(var move in _rootMove)
+            {
                 result += move.ToString() + '\n';
+                count++;
+            }
 
-            return result;
+            return result + string.Format($"着法数量：【{count}】\n");
         }
 
         private readonly Board _board;
