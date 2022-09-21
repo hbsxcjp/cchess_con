@@ -16,24 +16,24 @@ namespace cchess_con
             Visible = move.Visible;
             FromCoordValue = (byte)(coordPair.FromCoord.row << 4 | coordPair.FromCoord.col);
             ToCoordValue = (byte)(coordPair.ToCoord.row << 4 | coordPair.ToCoord.col);
-            AfterNum = (byte)move.AfterNum;
+            //AfterNum = (byte)move.AfterNum;
             Remark = move.Remark;
         }
 
         public bool Visible;
         public byte FromCoordValue;
         public byte ToCoordValue;
-        public byte AfterNum;
+        //public byte AfterNum;
         public string? Remark;
     }
 
-    internal class Move
+    internal class Move: IEnumerable
     {
         protected Move()
         {
             Before = null;
 
-            Visible = false;
+            Visible = true;
             //CoordPair = new CoordPair();
             //Remark = null;
 
@@ -54,6 +54,19 @@ namespace cchess_con
             Remark = moveDate.Remark;
         }
 
+        public Move? Before { get; set; }
+        public bool IsRoot { get { return Before == null; } }
+        public bool Visible { get; set; }
+        public CoordPair CoordPair { get; set; }
+        public string? Remark { get; set; }
+        public int AfterNum { get { return _AfterMoves?.Count ?? 0; } }
+
+        public Piece ToPiece { get; set; }
+
+        public bool HasAfter { get { return _AfterMoves != null; } }
+        //public bool HasOther { get { return (OtherMoves()?.Count ?? 0) > 0; } }
+
+        static public Move CreateRootMove() { return new(); }
         public Move AddAfterMove(Move move)
         {
             move.Before = this;
@@ -71,9 +84,7 @@ namespace cchess_con
 
         public Move AddOtherMove(Move move)
         {
-            if(Before != null)
-                Before.AddAfterMove(move);
-
+            Before?.AddAfterMove(move);
             return move;
         }
         public Move AddOtherMove(CoordPair coordPair, string? remark = null)
@@ -81,80 +92,45 @@ namespace cchess_con
             return AddOtherMove(new Move(coordPair, remark));
         }
 
-        public Move? Before { get; set; }
-        public bool Visible { get; set; }
-        public CoordPair CoordPair { get; set; }
-        public string? Remark { get; set; }
-        public int AfterNum { get { return _AfterMoves?.Count ?? 0; } }
-        public Piece ToPiece { get; set; }
-        virtual public bool IsRoot { get { return false; } }
+        //public List<Move> BeforeMoves()
+        //{
+        //    List<Move> moves = new();
+        //    Move move = this;
+        //    while(move.Before != null)
+        //    {
+        //        moves.Insert(0, move);
+        //        move = move.Before;
+        //    }
 
-        public bool HasAfter(bool enumVisible = true) => AfterMoves(enumVisible) != null;
-        public bool HasOther(bool enumVisible = true) => (OtherMoves(enumVisible)?.Count ?? 0) > 0;
+        //    return moves; // 含自身this
+        //}
 
-        public List<Move> BeforeMoves()
-        {
-            List<Move> moves = new();
-            Move move = this;
-            while(move.Before != null)
-            {
-                moves.Insert(0, move);
-                move = move.Before;
-            }
+        public List<Move>? AfterMoves() => _AfterMoves;
+        //public List<Move>? OtherMoves()
+        //{
+        //    var moves = Before?.AfterMoves() ?? null;
+        //    if(moves != null)
+        //        moves.Remove(this);
 
-            return moves; // 含自身this
-        }
-        public List<Move>? AfterMoves(bool enumVisible) => GetMoves(_AfterMoves, enumVisible);
-        public List<Move>? OtherMoves(bool enumVisible)
-        {
-            var moves = Before?.AfterMoves(enumVisible) ?? null;
-            if(moves != null)
-                moves.Remove(this);
-
-            return (moves?.Count ?? 0) == 0 ? null : moves;
-        }
+        //    return (moves?.Count ?? 0) == 0 ? null : moves;
+        //}
         new public string ToString()
         {
             return CoordPair.ToString() + Remark;
         }
 
-        static private List<Move>? GetMoves(List<Move>? moves, bool enumVisible)
-        {
-            if(!enumVisible || moves == null)
-                return moves;
+        IEnumerator IEnumerable.GetEnumerator() => (IEnumerator)GetEnumerator();
 
-            List<Move>? result = null;
-            foreach(var move in moves)
-                if(move.Visible)
-                    (result ??= new()).Add(move);
-
-            return result;
-        }
+        public MoveEnum GetEnumerator() => new(this);
 
         private List<Move>? _AfterMoves;
     }
 
-    internal class RootMove: Move, IEnumerable
-    {
-        public RootMove() : base()
-        {
-            EnumVisible = true;
-        }
-
-        override public bool IsRoot { get { return true; } }
-        static new public bool Visible { get { return true; } }
-        public bool EnumVisible { get; set; }
-
-        IEnumerator IEnumerable.GetEnumerator() => (IEnumerator)GetEnumerator();
-
-        public MoveEnum GetEnumerator() => new(this);
-    }
-
     internal class MoveEnum: IEnumerator
     {
-        public MoveEnum(RootMove rootMove)
+        public MoveEnum(Move topMove)
         {
-            RootMove = rootMove;
+            TopMove = topMove;
 
             _afterMoves = new();
             _queueMoves = new();
@@ -177,13 +153,13 @@ namespace cchess_con
             _afterMoves.Clear();
             _queueMoves.Clear();
 
-            _afterMoves.Add(RootMove);
-            EnqueueAfterMoves(RootMove);
+            _afterMoves.Add(TopMove);
+            EnqueueAfterMoves(TopMove);
         }
 
         object IEnumerator.Current { get { return Current; } }
 
-        public RootMove RootMove { get; }
+        public Move TopMove { get; }
         public Move Current
         {
             get
@@ -201,7 +177,7 @@ namespace cchess_con
 
         private void EnqueueAfterMoves(Move move)
         {
-            var afterMoves = move.AfterMoves(RootMove.EnumVisible);
+            var afterMoves = move.AfterMoves();
             if(afterMoves != null)
                 _queueMoves.Enqueue(afterMoves);
         }

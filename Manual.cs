@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.Numerics;
+using System.Reflection;
+using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
@@ -16,7 +18,7 @@ namespace cchess_con
         public Manual()
         {
             _info = new();
-            _manualMove = new(new RootMove());
+            _manualMove = new();
         }
 
         public Manual(string fileName) : this()
@@ -238,13 +240,11 @@ namespace cchess_con
                     return;
 
                 // 有左子树
-                //ManualMoveAppendIterator appendIter(manual->manualMove());
-                //while(stream.status() == QDataStream::Status::Ok && !appendIter.over())
-                Stack<Move> preMoves = new();
-                preMoves.Push(_manualMove.CurMove);
+                Stack<Move> beforeMoves = new();
+                beforeMoves.Push(_manualMove.CurMove);
                 bool isOther = false;
                 // 当前棋子为根，且有后继棋子时，表明深度搜索已经回退到根，已经没有后续棋子了
-                while(!_manualMove.CurMove.IsRoot || !_manualMove.CurMove.HasAfter(false))
+                while(!_manualMove.CurMove.IsRoot || !_manualMove.CurMove.HasAfter)
                 {
                     var remark = __readDataAndGetRemark();
                     //# 一步棋的起点和终点有简单的加密计算，读入时需要还原
@@ -273,11 +273,11 @@ namespace cchess_con
                         //Console.WriteLine("_manualMove.CurMove: " + _manualMove.CurMove.ToString());
 
                         if(hasNext && hasOther)
-                            preMoves.Push(_manualMove.CurMove);
+                            beforeMoves.Push(_manualMove.CurMove);
 
-                        isOther = !hasNext && !hasOther && preMoves.Count > 0;
-                        if(isOther)
-                            _manualMove.CurMove = preMoves.Pop(); // 最后时，将回退到根
+                        isOther = !hasNext;
+                        if(isOther  && !hasOther && beforeMoves.Count > 0)
+                            _manualMove.CurMove = beforeMoves.Pop(); // 最后时，将回退到根
                     }
                 }
             }
@@ -312,12 +312,16 @@ namespace cchess_con
 
     internal class ManualMove
     {
-        public ManualMove(RootMove rootMove)
+        public ManualMove()
         {
             _board = new();
-            _rootMove = rootMove;
-            CurMove = rootMove;
+            _rootMove = Move.CreateRootMove();
+            CurMove = _rootMove;
         }
+
+        //public Move RootMove { get { return _rootMove; } }
+        public Move CurMove { get; set; }
+        public string? CurRemark { get { return CurMove.Remark; } set { CurMove.Remark = value?.Trim(); } }
 
         //public List<Coord> GetCanPutCoords(Piece piece)
         //{ return new(); }
@@ -348,14 +352,10 @@ namespace cchess_con
             return _board.SetFEN(fen.Split(' ')[0]);
         }
 
-        public Move CurMove { get; set; }
-        public string? CurRemark { get { return CurMove.Remark; } set { CurMove.Remark = value?.Trim(); } }
-
         new public string ToString()
         {
             string result = _board.ToString();
-            _rootMove.EnumVisible = false;
-            int count = -1; // 去掉根节点
+            int count = -1; // 计算着法数量时去掉根节点
             foreach(var move in _rootMove)
             {
                 result += move.ToString() + '\n';
@@ -366,6 +366,6 @@ namespace cchess_con
         }
 
         private readonly Board _board;
-        private readonly RootMove _rootMove;
+        private readonly Move _rootMove;
     }
 }

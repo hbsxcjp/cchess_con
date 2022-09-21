@@ -1,6 +1,5 @@
 //See https://aka.ms/new-console-template for more information
 using cchess_con;
-
 const string output = @"C:\program1\gitee\cchess_cs\cchess_con\output\";
 
 static void TestBoard()
@@ -70,12 +69,16 @@ static void TestManual()
 
     string path = output + @"TestManual.txt";
 
+
     using(StreamWriter sw = File.CreateText(path))
     {
         foreach(string fileName in fileNames)
         {
             Manual manual = new Manual(output + fileName);
             sw.WriteLine(manual.ToString());
+
+
+            //string cmFileName = fileName+".cm";
         }
     }
 }
