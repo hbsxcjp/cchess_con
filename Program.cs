@@ -64,7 +64,8 @@ static void TestManual()
         "4四量拨千斤.XQF",
         "第09局.XQF",
         "布局陷阱--飞相局对金钩炮.XQF",
-        "- 北京张强 (和) 上海胡荣华 (1993.4.27于南京).xqf"
+        "- 北京张强 (和) 上海胡荣华 (1993.4.27于南京).xqf",
+        //"中炮对屏风马.XQF"
     };
 
     string path = output + @"TestManual.txt";
@@ -74,14 +75,60 @@ static void TestManual()
     {
         foreach(string fileName in fileNames)
         {
-            Manual manual = new Manual(output + fileName);
-            sw.WriteLine(manual.ToString());
+            Manual manual = new(output + fileName);
+            //sw.WriteLine(manual.ToString());
 
 
-            //string cmFileName = fileName+".cm";
+            string cmFileName = output + fileName + ".cm";
+            manual.Write(cmFileName);
+
+            Manual twoManual = new(cmFileName);
+            sw.WriteLine(twoManual.ToString());
+
         }
     }
 }
 
+static void TestParallel()
+{
+    int[] nums = Enumerable.Range(0, 1000000).ToArray();
+    long total = 0;
+
+    // First type parameter is the type of the source elements
+    // Second type parameter is the type of the thread-local variable (partition subtotal)
+    Parallel.ForEach<int, long>(nums, // source collection
+                                () => 0, // method to initialize the local variable
+                                (j, loop, subtotal) => // method invoked by the loop on each iteration
+                                {
+                                    subtotal += j; //modify local variable
+                                    return subtotal; // value to be passed to next iteration
+                                },
+                                // Method to be executed when each partition has completed.
+                                // finalResult is the final value of subtotal for a particular partition.
+                                (finalResult) => Interlocked.Add(ref total, finalResult)
+                                );
+
+    Console.WriteLine("The total from Parallel.ForEach is {0:N0}", total);
+    // The example displays the following output:
+    //        The total from Parallel.ForEach is 499,999,500,000
+
+
+    //int[] nums = Enumerable.Range(0, 1000000).ToArray();
+    total = 0;
+
+    // Use type parameter to make subtotal a long, not an int
+    Parallel.For<long>(0, nums.Length, () => 0, (j, loop, subtotal) =>
+    {
+        subtotal += nums[j];
+        return subtotal;
+    },
+        (x) => Interlocked.Add(ref total, x)
+    );
+
+    Console.WriteLine("The total is {0:N0}", total);
+}
+
 TestBoard();
 TestManual();
+
+//TestParallel();

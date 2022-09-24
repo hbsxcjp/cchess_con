@@ -14,6 +14,11 @@ namespace cchess_con
             row = r;
             col = c;
         }
+        public Coord(int data) : this(data >> 4, data & 0X0F)
+        {
+        }
+
+        public int Data { get { return row << 4 | col; } }
 
         new public string ToString() => string.Format($"({row},{col})");
 
@@ -28,6 +33,11 @@ namespace cchess_con
             FromCoord = fromCoord;
             ToCoord = toCoord;
         }
+        public CoordPair(int data) : this(new(data >> 8), new(data & 0XFF))
+        {
+        }
+
+        public ushort Data { get { return (ushort)(FromCoord.Data << 8 | ToCoord.Data); } }
 
         new public string ToString() => string.Format($"[{FromCoord.ToString()},{ToCoord.ToString()}]");
 

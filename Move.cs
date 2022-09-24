@@ -8,57 +8,27 @@ using System.Threading.Tasks;
 
 namespace cchess_con
 {
-    internal struct MoveData
-    {
-        public MoveData(Move move)
-        {
-            CoordPair coordPair = move.CoordPair;
-            Visible = move.Visible;
-            FromCoordValue = (byte)(coordPair.FromCoord.row << 4 | coordPair.FromCoord.col);
-            ToCoordValue = (byte)(coordPair.ToCoord.row << 4 | coordPair.ToCoord.col);
-            //AfterNum = (byte)move.AfterNum;
-            Remark = move.Remark;
-        }
-
-        public bool Visible;
-        public byte FromCoordValue;
-        public byte ToCoordValue;
-        //public byte AfterNum;
-        public string? Remark;
-    }
-
     internal class Move: IEnumerable
     {
-        protected Move()
+        protected Move(bool visible = true)
         {
             Before = null;
-
-            Visible = true;
-            //CoordPair = new CoordPair();
-            //Remark = null;
-
             ToPiece = Piece.NullPiece;
+
+            Visible = visible;
             _AfterMoves = null;
         }
-        protected Move(CoordPair coordPair, string? remark = null) : this()
+        protected Move(CoordPair coordPair, string? remark = null, bool visible=true) : this(visible)
         {
             CoordPair = coordPair;
             Remark = remark;
         }
-        protected Move(MoveData moveDate) : this()
-        {
-            Visible = moveDate.Visible;
-            CoordPair = new CoordPair(
-                new Coord(moveDate.FromCoordValue >> 4, moveDate.FromCoordValue & 0x0F),
-                new Coord(moveDate.ToCoordValue >> 4, moveDate.ToCoordValue & 0x0F));
-            Remark = moveDate.Remark;
-        }
 
         public Move? Before { get; set; }
         public bool IsRoot { get { return Before == null; } }
-        public bool Visible { get; set; }
         public CoordPair CoordPair { get; set; }
         public string? Remark { get; set; }
+        public bool Visible { get; set; }
         public int AfterNum { get { return _AfterMoves?.Count ?? 0; } }
 
         public Piece ToPiece { get; set; }
@@ -73,13 +43,9 @@ namespace cchess_con
             (_AfterMoves ??= new()).Add(move);
             return move;
         }
-        public Move AddAfterMove(MoveData moveData)
+        public Move AddAfterMove(CoordPair coordPair, string? remark = null, bool visible = true)
         {
-            return AddAfterMove(new Move(moveData));
-        }
-        public Move AddAfterMove(CoordPair coordPair, string? remark = null)
-        {
-            return AddAfterMove(new Move(coordPair, remark));
+            return AddAfterMove(new Move(coordPair, remark,visible));
         }
 
         public Move AddOtherMove(Move move)

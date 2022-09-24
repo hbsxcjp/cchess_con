@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Reflection;
@@ -23,25 +24,31 @@ namespace cchess_con
 
         public Manual(string fileName) : this()
         {
-            Read(fileName);
+            if(fileName.Substring(fileName.LastIndexOf('.')).ToUpper() == ".XQF")
+                ReadXQF(fileName);
+            else
+                ReadCM(fileName);
         }
         public Manual(Dictionary<string, string> info) : this()
         {
         }
 
-        public void Read(string fileName)
-        {
-            ReadXQF(fileName);
-            //ReadCM(fileName);
-        }
         public void Write(string fileName)
         {
-            WriteCM(fileName);
+            //WriteCM(fileName);
+            WriteCMParallel(fileName);
         }
 
-        private void WriteCM(string fileName)
-        {
+        public string InfoValue(string key) { return _info[key]; }
+        public void SetInfoValue(string key, string value) { _info[key] = value.Trim(); }
 
+        new public string ToString()
+        {
+            string result = "";
+            foreach(var kv in _info)
+                result += string.Format($"[{kv.Key} \"{kv.Value}\"]\n");
+
+            return result + _manualMove.ToString() + '\n';
         }
 
         private void ReadXQF(string fileName)
@@ -182,7 +189,8 @@ namespace cchess_con
                 SetInfoValue("OPENING", codec.GetString(Opening).Replace('\0', ' '));
                 SetInfoValue("WRITER", codec.GetString(RMKWriter).Replace('\0', ' '));
                 SetInfoValue("AUTHOR", codec.GetString(Author).Replace('\0', ' '));
-                SetInfoFEN(Board.GetFEN(pieceChars.ToString()), PieceColor.RED); // 可能存在不是红棋先走的情况？
+                SetInfoValue("FEN", string.Format($"{Board.GetFEN(pieceChars.ToString())} r - - 0 1")); // 可能存在不是红棋先走的情况？
+                SetBoard();
 
                 byte __sub(byte a, byte b) { return (byte)(a - b); }; // 保持为<256
 
@@ -234,7 +242,6 @@ namespace cchess_con
 
                 stream.Seek(1024, SeekOrigin.Begin);
                 _manualMove.CurRemark = __readDataAndGetRemark();
-                _manualMove.SetBoard(InfoValue("FEN"));
 
                 if((tag & 0x80) == 0) // 无左子树
                     return;
@@ -276,34 +283,111 @@ namespace cchess_con
                             beforeMoves.Push(_manualMove.CurMove);
 
                         isOther = !hasNext;
-                        if(isOther  && !hasOther && beforeMoves.Count > 0)
+                        if(isOther && !hasOther && beforeMoves.Count > 0)
                             _manualMove.CurMove = beforeMoves.Pop(); // 最后时，将回退到根
                     }
                 }
             }
         }
-
         private void ReadCM(string fileName)
         {
+            if(!File.Exists(fileName))
+                return;
 
+            using var stream = File.Open(fileName, FileMode.Open);
+            using var reader = new BinaryReader(stream, Encoding.UTF8, false);
+            int count = reader.ReadInt32();
+            for(int i = 0;i < count;i++)
+            {
+                string key = reader.ReadString();
+                string value = reader.ReadString();
+                _info[key] = value;
+            }
+            SetBoard();
+
+            _manualMove.CurMove.CoordPair = new(reader.ReadUInt16());
+            if(reader.ReadBoolean())
+                _manualMove.CurMove.Remark = reader.ReadString();
+            
+            _manualMove.CurMove.Visible = reader.ReadBoolean();
+            int beforeAfterNum = reader.ReadByte();
+
+            Queue<Tuple<Move, int>> beforeMoveQueue = new();
+            beforeMoveQueue.Enqueue(Tuple.Create(_manualMove.CurMove, beforeAfterNum));
+            while(beforeMoveQueue.Count > 0)
+            {
+                var moveAfterNum = beforeMoveQueue.Dequeue();
+                var beforeMove = moveAfterNum.Item1;
+                beforeAfterNum = moveAfterNum.Item2;
+                for(int i = 0;i < beforeAfterNum;++i)
+                {
+                    CoordPair coordPair = new(reader.ReadUInt16());
+                    string? remark = null;
+                    if(reader.ReadBoolean())
+                        remark = reader.ReadString();
+
+                    bool visible = reader.ReadBoolean();
+                    int afterNum = reader.ReadByte();
+
+                    var move = beforeMove.AddAfterMove(coordPair, remark, visible);
+                    if(afterNum > 0)
+                        beforeMoveQueue.Enqueue(Tuple.Create(move, afterNum));
+                }
+            }
         }
 
-        public string InfoValue(string key) { return _info[key]; }
-        public void SetInfoValue(string key, string value) { _info[key] = value.Trim(); }
-
-        public void SetInfoFEN(string fen, PieceColor firstColor)
+        private void WriteCM(string fileName)
         {
-            char color = firstColor == PieceColor.RED ? 'r' : 'b';
-            SetInfoValue("FEN", string.Format($"{fen} {color} - - 0 1"));
-        }
+            using var stream = File.Open(fileName, FileMode.Create);
+            using var writer = new BinaryWriter(stream, Encoding.UTF8, false);
 
-        new public string ToString()
-        {
-            string result = "";
+            writer.Write(_info.Count);
             foreach(var kv in _info)
-                result += string.Format($"[{kv.Key} \"{kv.Value}\"]\n");
+            {
+                writer.Write(kv.Key);
+                writer.Write(kv.Value);
+            }
 
-            return result + _manualMove.ToString() + '\n';
+            _manualMove.BackStart();
+            Queue<List<Move>> afterMovesQueue = new();
+            afterMovesQueue.Enqueue(new List<Move> { _manualMove.CurMove });
+            while(afterMovesQueue.Count > 0)
+            {
+                var afterMoves = afterMovesQueue.Dequeue();
+                foreach(var move in afterMoves)
+                {
+                    writer.Write(move.CoordPair.Data);
+                    writer.Write(move.Remark != null);
+                    if(move.Remark != null)
+                        writer.Write(move.Remark);
+
+                    writer.Write(move.Visible);
+                    writer.Write((byte)move.AfterNum);
+                    var moves = move.AfterMoves();
+                    if(moves != null)
+                        afterMovesQueue.Enqueue(moves);
+                }
+            } 
+        }
+
+        private void WriteCMParallel(string fileName)
+        {
+            using var stream = File.Open(fileName, FileMode.Create);
+            using var writer = new BinaryWriter(stream, Encoding.UTF8, false);
+
+            writer.Write(_info.Count);
+            foreach(var kv in _info)
+            {
+                writer.Write(kv.Key);
+                writer.Write(kv.Value);
+            }
+
+            _manualMove.WriteCMParallel(writer);
+        }
+
+        private void SetBoard()
+        {
+            _manualMove.SetBoard(InfoValue("FEN"));
         }
 
         private readonly Dictionary<string, string> _info;
@@ -333,6 +417,7 @@ namespace cchess_con
             CurMove = isOther ? CurMove.AddOtherMove(coordPair, remark) : CurMove.AddAfterMove(coordPair, remark);
         }
 
+        public void BackStart() { CurMove = _rootMove; }
         //public bool GoNext() // 前进
         //{ return true; }
         //public bool BackNext() // 本着非变着，则回退一着
@@ -346,6 +431,45 @@ namespace cchess_con
 
         //private void done(Move move) { }
         //private void undo(Move move) { }
+
+        public void WriteCMParallel(BinaryWriter fileWriter)
+        {
+            MemoryStream stream = new();
+            using var writer = new BinaryWriter(stream, Encoding.UTF8, false);
+            List<int> blockLens = new();
+            var pos = stream.Position;
+            Queue<List<Move>> afterMovesQueue = new();
+            afterMovesQueue.Enqueue(new List<Move> { _rootMove});
+            while(afterMovesQueue.Count > 0)
+            {
+                var afterMoves = afterMovesQueue.Dequeue();
+                foreach(var move in afterMoves)
+                {
+                    writer.Write(move.CoordPair.Data);
+                    writer.Write(move.Remark != null);
+                    if(move.Remark != null)
+                        writer.Write(move.Remark);
+
+                    writer.Write(move.Visible);
+                    writer.Write((byte)move.AfterNum);
+                    var moves = move.AfterMoves();
+                    if(moves != null)
+                        afterMovesQueue.Enqueue(moves);
+                }
+                var len = stream.Position - pos;
+                if(len > 8000)
+                {
+                    blockLens.Add((int)len);
+                    pos = stream.Position;
+                }
+            }
+
+            fileWriter.Write(blockLens.Count);
+            foreach(var len in blockLens)
+                fileWriter.Write(len);
+
+            fileWriter.Write(stream.ToArray());
+        }
 
         public bool SetBoard(string fen)
         {
