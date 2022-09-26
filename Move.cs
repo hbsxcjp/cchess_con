@@ -10,7 +10,7 @@ namespace cchess_con
 {
     internal class Move: IEnumerable
     {
-        protected Move(bool visible = true)
+        public Move(bool visible = true)
         {
             Before = null;
             ToPiece = Piece.NullPiece;
@@ -18,7 +18,7 @@ namespace cchess_con
             Visible = visible;
             _AfterMoves = null;
         }
-        protected Move(CoordPair coordPair, string? remark = null, bool visible=true) : this(visible)
+        public Move(CoordPair coordPair, string? remark = null, bool visible=true) : this(visible)
         {
             CoordPair = coordPair;
             Remark = remark;
