@@ -24,6 +24,8 @@ namespace cchess_con
             Remark = remark;
         }
 
+        public int Id { get; set; }
+        public int BeforeId { get; set; }
         public Move? Before { get; set; }
         public bool IsRoot { get { return Before == null; } }
         public CoordPair CoordPair { get; set; }

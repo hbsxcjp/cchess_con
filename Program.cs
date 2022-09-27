@@ -80,8 +80,8 @@ static void TestManual()
         string cmFileName = output + fileName + ".cm";
         manual.Write(cmFileName);
 
-        Manual twoManual = new(cmFileName);
-        sw.Write(twoManual.ToString());
+        //Manual twoManual = new(cmFileName);
+        //sw.Write(twoManual.ToString());
 
     }
 }

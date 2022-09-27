@@ -314,7 +314,7 @@ namespace cchess_con
             _manualMove.CurMove.CoordPair = new(reader.ReadUInt16());
             if(reader.ReadBoolean())
                 _manualMove.CurMove.Remark = reader.ReadString();
-            
+
             _manualMove.CurMove.Visible = reader.ReadBoolean();
             int beforeAfterNum = reader.ReadByte();
 
@@ -373,7 +373,7 @@ namespace cchess_con
                     if(moves != null)
                         afterMovesQueue.Enqueue(moves);
                 }
-            } 
+            }
         }
 
         private void ReadCMParallel(string fileName)
@@ -460,94 +460,96 @@ namespace cchess_con
         {
             List<int> blockLens = new();
             int count = reader.ReadInt32();
-            for(int i = 0; i < count; i++)  
+            for(int i = 0;i < count;i++)
                 blockLens.Add(reader.ReadInt32());
 
-            List<byte[]> blockBytes=new();
+            List<byte[]> blockBytes = new();
             foreach(var len in blockLens)
                 blockBytes.Add(reader.ReadBytes(len));
 
-            int beforeAfterNum = 0;
-            Queue<Tuple<Move, int>> beforeMoves = new();
-            Move bytesToMove(byte[] bytes, ParallelLoopState loop, Move ?move)
+            List<Move> allMoves = new();
+            List<Move> bytesToMove(int index, ParallelLoopState loop, List<Move> subMoves)
             {
-                MemoryStream stream = new(bytes);
+                MemoryStream stream = new(blockBytes[index]);
                 using var reader = new BinaryReader(stream, Encoding.UTF8, false);
+                var id = reader.ReadInt32();
+                var beforeId = reader.ReadInt32();
                 var data = reader.ReadUInt16();
                 bool hasRemark = reader.ReadBoolean();
                 string? remark = null;
                 if(hasRemark)
                     remark = reader.ReadString();
-
                 bool visible = reader.ReadBoolean();
-                byte afterNum = reader.ReadByte();
-                if(data==0)
-                {
-                    _rootMove.Remark = remark;
-                    if(afterNum > 0)
-                        beforeMoves.Enqueue(new Tuple<Move, int>(_rootMove, afterNum));
-                    return _rootMove; // 返回根节点
-                }
 
-                Move newMove = new(new CoordPair(data), remark, visible);
-                if(afterNum > 0)
-                    beforeMoves.Enqueue(new Tuple<Move, int>(newMove, afterNum));
+                Move move = data == 0 ? _rootMove : new(new CoordPair(data), remark, visible);
+                move.Id = id;
+                move.BeforeId = beforeId;
+                if(move == _rootMove)
+                    move.Remark = remark;
 
-                if(beforeAfterNum == 0)
-                {
-                    var moveNum = beforeMoves.Dequeue();
-                    moveNum.Item1.AddAfterMove(newMove);
-                    beforeAfterNum = moveNum.Item2 - 1; // 减少自身所占数量
-                }
-                else
-                {
-                    move?.AddOtherMove(newMove);
-                    beforeAfterNum--;
-                }
-
-                return newMove;
+                subMoves.Add(move);
+                return subMoves;
             }
-            Parallel.ForEach<byte[], Move>(blockBytes,
+            Parallel.For<List<Move>>(0, blockBytes.Count,
                                 () => new(),
                                 bytesToMove,
-                                (lastMove) => { }
+                                (finalSubMoves) => allMoves.AddRange(finalSubMoves)
                                 );
+
+            Dictionary<int, Move> idMoves = new(count);
+            Dictionary<int, List<Move>> beforeIdMoves = new(count);
+            foreach(var move in allMoves)
+            {
+                idMoves.Add(move.Id, move);
+                beforeIdMoves[move.BeforeId].Add(move);
+            }
+            foreach(var keyValue in beforeIdMoves)
+            {
+                var beforeMove = idMoves[keyValue.Key];
+                foreach(var move in keyValue.Value)
+                    beforeMove.AddAfterMove(move);
+            }
         }
         public void WriteCMParallel(BinaryWriter fileWriter)
         {
             List<Move> allMoves = new();
+            int id = 0;
             foreach(var move in _rootMove)
+            {
+                move.Id = id++;
                 allMoves.Add(move);
+            }
 
             List<int> blockLens = new();
-            MemoryStream allStream = new();
-            MemoryStream moveToStream(Move move, ParallelLoopState loop,MemoryStream moveStream) 
+            byte[] allBytes = new byte[0];
+            byte[] moveToBytes(int index, ParallelLoopState loop, byte[] byteBlock)
             {
                 MemoryStream stream = new();
                 using var writer = new BinaryWriter(stream, Encoding.UTF8, false);
+                Move move = allMoves[index];
+                writer.Write(move.Id);
+                writer.Write(move.Before?.Id ?? -1);
                 writer.Write(move.CoordPair.Data);
                 writer.Write(move.Remark != null);
                 if(move.Remark != null)
                     writer.Write(move.Remark);
-
                 writer.Write(move.Visible);
-                writer.Write((byte)move.AfterNum);
 
-                blockLens.Add((int)stream.Length);
-                stream.WriteTo(moveStream);
-                return moveStream;
+                var moveBytes = stream.ToArray();
+                blockLens.Add(moveBytes.Length);
+                return (byte[])byteBlock.Concat<byte>(moveBytes);
             }
-            Parallel.ForEach<Move, MemoryStream>(allMoves, 
-                                () => new(),
-                                moveToStream,
-                                (finalMoveStream) => finalMoveStream.WriteTo(allStream)
+            Parallel.For<byte[]>(0, allMoves.Count,
+                                () => new byte[0],
+                                moveToBytes,
+                                (finalByteBlock) => allBytes.Concat<byte>(finalByteBlock)
                                 );
 
             fileWriter.Write(blockLens.Count);
             foreach(var len in blockLens)
                 fileWriter.Write(len);
 
-            fileWriter.Write(allStream.ToArray());
+            fileWriter.Write(allBytes);
         }
 
         public bool SetBoard(string fen)
