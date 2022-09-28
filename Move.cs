@@ -18,7 +18,7 @@ namespace cchess_con
             Visible = visible;
             _AfterMoves = null;
         }
-        public Move(CoordPair coordPair, string? remark = null, bool visible=true) : this(visible)
+        public Move(CoordPair coordPair, string? remark = null, bool visible = true) : this(visible)
         {
             CoordPair = coordPair;
             Remark = remark;
@@ -47,7 +47,7 @@ namespace cchess_con
         }
         public Move AddAfterMove(CoordPair coordPair, string? remark = null, bool visible = true)
         {
-            return AddAfterMove(new Move(coordPair, remark,visible));
+            return AddAfterMove(new Move(coordPair, remark, visible));
         }
 
         public Move AddOtherMove(Move move)
@@ -99,31 +99,18 @@ namespace cchess_con
         public MoveEnum(Move topMove)
         {
             TopMove = topMove;
-
-            _afterMoves = new();
             _queueMoves = new();
 
             Reset();
         }
 
-        public bool MoveNext()
-        {
-            _position++;
-            if(_position >= _afterMoves.Count)
-                DequeueAfterMoves();
-
-            return _position < _afterMoves.Count;
-        }
-
         public void Reset()
         {
-            _position = -1;
-            _afterMoves.Clear();
             _queueMoves.Clear();
-
-            _afterMoves.Add(TopMove);
             EnqueueAfterMoves(TopMove);
         }
+
+        public bool MoveNext() { return _queueMoves.Count > 0; }
 
         object IEnumerator.Current { get { return Current; } }
 
@@ -134,7 +121,9 @@ namespace cchess_con
             {
                 try
                 {
-                    return _afterMoves[_position];
+                    Move move = _queueMoves.Dequeue();
+                    EnqueueAfterMoves(move);
+                    return move;
                 }
                 catch(IndexOutOfRangeException)
                 {
@@ -143,27 +132,17 @@ namespace cchess_con
             }
         }
 
-        private void EnqueueAfterMoves(Move move)
+        private void EnqueueAfterMoves(Move beforeMove)
         {
-            var afterMoves = move.AfterMoves();
-            if(afterMoves != null)
-                _queueMoves.Enqueue(afterMoves);
-        }
-
-        private void DequeueAfterMoves()
-        {
-            if(_queueMoves.Count == 0)
+            var afterMoves = beforeMove.AfterMoves();
+            if(afterMoves == null)
                 return;
 
-            _position = 0;
-            _afterMoves = _queueMoves.Dequeue();
-            foreach(var move in _afterMoves)
-                EnqueueAfterMoves(move);
+            foreach(var move in afterMoves)
+                _queueMoves.Enqueue(move);
         }
 
-        private int _position;
-        private List<Move> _afterMoves;
-        private readonly Queue<List<Move>> _queueMoves;
+        private readonly Queue<Move> _queueMoves;
     }
 
 

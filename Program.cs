@@ -75,13 +75,14 @@ static void TestManual()
     foreach(string fileName in fileNames)
     {
         Manual manual = new(output + fileName);
+        sw.WriteLine(fileName);
         //sw.Write(manual.ToString());
 
         string cmFileName = output + fileName + ".cm";
         manual.Write(cmFileName);
 
-        //Manual twoManual = new(cmFileName);
-        //sw.Write(twoManual.ToString());
+        Manual twoManual = new(cmFileName);
+        sw.Write(twoManual.ToString());
 
     }
 }
