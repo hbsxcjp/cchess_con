@@ -15,6 +15,9 @@ namespace cchess_con
             Before = null;
             ToPiece = Piece.NullPiece;
 
+            Id = 0;
+            BeforeId = -1;
+
             Visible = visible;
             _AfterMoves = null;
         }
