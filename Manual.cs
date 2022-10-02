@@ -9,6 +9,7 @@ using System.Linq;
 using System.Net.Security;
 using System.Numerics;
 using System.Reflection;
+using System.Reflection.PortableExecutable;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
@@ -23,6 +24,8 @@ namespace cchess_con
         {
             _info = new();
             _manualMove = new();
+
+            SetInfoValue("FEN", FEN);
         }
 
         public Manual(string fileName) : this()
@@ -30,26 +33,27 @@ namespace cchess_con
             if(fileName[fileName.LastIndexOf('.')..].ToUpper() == ".XQF")
                 ReadXQF(fileName);
             else
-                //ReadCM(fileName);
-                ReadCMParallel(fileName);
+                ReadCM(fileName);
+            //ReadCMParallel(fileName);
         }
 
         public void Write(string fileName)
         {
-            //WriteCM(fileName);
-            WriteCMParallel(fileName);
+            WriteCM(fileName);
+            //WriteCMParallel(fileName);
         }
 
         public string InfoValue(string key) { return _info[key]; }
         public void SetInfoValue(string key, string value) { _info[key] = value.Trim(); }
 
-        new public string ToString()
+        public string ToString(bool showMove = false)
         {
             string result = "";
             foreach(var kv in _info)
                 result += string.Format($"[{kv.Key} \"{kv.Value}\"]\n");
 
-            return result + _manualMove.ToString() + '\n';
+            return result + _manualMove.ToString(showMove) + '\n';
+            //return _manualMove.ToString() + '\n';
         }
 
         private void ReadXQF(string fileName)
@@ -254,7 +258,7 @@ namespace cchess_con
             beforeMoves.Push(_manualMove.CurMove);
             bool isOther = false;
             // 当前棋子为根，且有后继棋子时，表明深度搜索已经回退到根，已经没有后续棋子了
-            while(!_manualMove.CurMove.IsRoot || !_manualMove.CurMove.HasAfter)
+            while(!(_manualMove.CurMove.Before == null && _manualMove.CurMove.HasAfter))
             {
                 var remark = __readDataAndGetRemark();
                 //# 一步棋的起点和终点有简单的加密计算，读入时需要还原
@@ -274,12 +278,11 @@ namespace cchess_con
                 if(curCoordPair.FromCoord.row == frow && curCoordPair.FromCoord.col == fcol
                     && curCoordPair.ToCoord.row == trow && curCoordPair.ToCoord.col == tcol)
                 {
-                    Console.WriteLine("Error: " + fileName); //+ coordPair << remark;
-                    _manualMove.CurRemark = remark;
+                    Console.WriteLine("Error: " + fileName + coordPair.ToString() + _manualMove.CurRemark);
                 }
                 else
                 {
-                    _manualMove.AddMove(coordPair, remark, isOther);
+                    _manualMove.AddMove(coordPair, remark, true, isOther);
                     //Console.WriteLine("_manualMove.CurMove: " + _manualMove.CurMove.ToString());
 
                     if(hasNext && hasOther)
@@ -291,6 +294,7 @@ namespace cchess_con
                 }
             }
         }
+
         private void ReadCM(string fileName)
         {
             if(!File.Exists(fileName))
@@ -307,37 +311,8 @@ namespace cchess_con
             }
             SetBoard();
 
-            _manualMove.CurMove.CoordPair = new(reader.ReadUInt16());
-            if(reader.ReadBoolean())
-                _manualMove.CurMove.Remark = reader.ReadString();
-
-            _manualMove.CurMove.Visible = reader.ReadBoolean();
-            int beforeAfterNum = reader.ReadByte();
-
-            Queue<Tuple<Move, int>> beforeMoveQueue = new();
-            beforeMoveQueue.Enqueue(Tuple.Create(_manualMove.CurMove, beforeAfterNum));
-            while(beforeMoveQueue.Count > 0)
-            {
-                var moveAfterNum = beforeMoveQueue.Dequeue();
-                var beforeMove = moveAfterNum.Item1;
-                beforeAfterNum = moveAfterNum.Item2;
-                for(int i = 0;i < beforeAfterNum;++i)
-                {
-                    CoordPair coordPair = new(reader.ReadUInt16());
-                    string? remark = null;
-                    if(reader.ReadBoolean())
-                        remark = reader.ReadString();
-
-                    bool visible = reader.ReadBoolean();
-                    int afterNum = reader.ReadByte();
-
-                    var move = beforeMove.AddAfterMove(coordPair, remark, visible);
-                    if(afterNum > 0)
-                        beforeMoveQueue.Enqueue(Tuple.Create(move, afterNum));
-                }
-            }
+            _manualMove.ReadCM(reader);
         }
-
         private void WriteCM(string fileName)
         {
             using var stream = File.Open(fileName, FileMode.Create);
@@ -350,65 +325,48 @@ namespace cchess_con
                 writer.Write(kv.Value);
             }
 
-            _manualMove.BackStart();
-            Queue<List<Move>> afterMovesQueue = new();
-            afterMovesQueue.Enqueue(new List<Move> { _manualMove.CurMove });
-            while(afterMovesQueue.Count > 0)
-            {
-                var afterMoves = afterMovesQueue.Dequeue();
-                foreach(var move in afterMoves)
-                {
-                    writer.Write(move.CoordPair.Data);
-                    writer.Write(move.Remark != null);
-                    if(move.Remark != null)
-                        writer.Write(move.Remark);
-
-                    writer.Write(move.Visible);
-                    writer.Write((byte)move.AfterNum);
-                    var moves = move.AfterMoves();
-                    if(moves != null)
-                        afterMovesQueue.Enqueue(moves);
-                }
-            }
+            _manualMove.WriteCM(writer);
         }
 
-        private void ReadCMParallel(string fileName)
-        {
-            if(!File.Exists(fileName))
-                return;
+        //private void ReadCMParallel(string fileName)
+        //{
+        //    if(!File.Exists(fileName))
+        //        return;
 
-            using var stream = File.Open(fileName, FileMode.Open);
-            using var reader = new BinaryReader(stream, Encoding.UTF8, false);
-            int count = reader.ReadInt32();
-            for(int i = 0;i < count;i++)
-            {
-                string key = reader.ReadString();
-                string value = reader.ReadString();
-                _info[key] = value;
-            }
-            SetBoard();
+        //    using var stream = File.Open(fileName, FileMode.Open);
+        //    using var reader = new BinaryReader(stream, Encoding.UTF8, false);
+        //    int count = reader.ReadInt32();
+        //    for(int i = 0;i < count;i++)
+        //    {
+        //        string key = reader.ReadString();
+        //        string value = reader.ReadString();
+        //        _info[key] = value;
+        //    }
+        //    SetBoard();
 
-            _manualMove.ReadCMParallel(reader);
-        }
-        private void WriteCMParallel(string fileName)
-        {
-            using var stream = File.Open(fileName, FileMode.Create);
-            using var writer = new BinaryWriter(stream, Encoding.UTF8, false);
+        //    _manualMove.ReadCMParallel(reader);
+        //}
+        //private void WriteCMParallel(string fileName)
+        //{
+        //    using var stream = File.Open(fileName, FileMode.Create);
+        //    using var writer = new BinaryWriter(stream, Encoding.UTF8, false);
 
-            writer.Write(_info.Count);
-            foreach(var kv in _info)
-            {
-                writer.Write(kv.Key);
-                writer.Write(kv.Value);
-            }
+        //    writer.Write(_info.Count);
+        //    foreach(var kv in _info)
+        //    {
+        //        writer.Write(kv.Key);
+        //        writer.Write(kv.Value);
+        //    }
 
-            _manualMove.WriteCMParallel(writer);
-        }
+        //    _manualMove.WriteCMParallel(writer);
+        //}
 
         private void SetBoard()
         {
             _manualMove.SetBoard(InfoValue("FEN"));
         }
+
+        private const string FEN = "rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR";
 
         private readonly Dictionary<string, string> _info;
         private readonly ManualMove _manualMove;
@@ -432,9 +390,20 @@ namespace cchess_con
         //public List<Coord> GetCanMoveCoords(Coord fromCoord)
         //{ return new(); }
 
-        public void AddMove(CoordPair coordPair, string? remark, bool isOther)
+        public void AddMove(CoordPair coordPair, string? remark, bool visible, bool isOther)
         {
-            CurMove = isOther ? CurMove.AddOtherMove(coordPair, remark) : CurMove.AddAfterMove(coordPair, remark);
+            CurMove = isOther ? CurMove.AddOtherMove(coordPair, remark, visible) : CurMove.AddAfterMove(coordPair, remark, visible);
+        }
+
+        public bool CheckMove(CoordPair coordPair, bool isOther)
+        {
+            if(isOther)
+                CurMove.Undo(_board);
+            bool result = _board.CanMoveCoord(coordPair.FromCoord).Contains(coordPair.ToCoord);
+            if(isOther)
+                CurMove.Done(_board);
+
+            return result;
         }
 
         public void BackStart() { CurMove = _rootMove; }
@@ -449,125 +418,190 @@ namespace cchess_con
         //public bool GoTo(Move move) // 前进至指定move
         //{ return true; }
 
-        //private void done(Move move) { }
-        //private void undo(Move move) { }
-
-        public void ReadCMParallel(BinaryReader fileReader)
+        public void ReadCM(BinaryReader reader)
         {
-            string? readRemark(BinaryReader reader)
+            reader.ReadUInt16(); // Data
+            if(reader.ReadBoolean())
+                _rootMove.Remark = reader.ReadString();
+            reader.ReadBoolean(); // Visible 
+            int beforeAfterNum = reader.ReadByte();
+
+            Queue<Tuple<Move, int>> beforeMoveQueue = new();
+            beforeMoveQueue.Enqueue(Tuple.Create(_rootMove, beforeAfterNum));
+            while(beforeMoveQueue.Count > 0)
             {
-                if(reader.ReadBoolean())
-                    return reader.ReadString();
-
-                return null;
-            }
-
-            _rootMove.Remark = readRemark(fileReader);
-            List<byte[]> allBlockBytes = new();
-            while(fileReader.BaseStream.Position < fileReader.BaseStream.Length)
-            {
-                int length = fileReader.ReadInt32();
-                allBlockBytes.Add(fileReader.ReadBytes(length));
-            }
-
-            ConcurrentDictionary<int, Move> allMoves = new();
-            allMoves.GetOrAdd(0, _rootMove);
-            List<Move> bytesToMove(int index, ParallelLoopState loop, List<Move> moves)
-            {
-                MemoryStream stream = new(allBlockBytes[index]);
-                using var reader = new BinaryReader(stream, Encoding.UTF8, false);
-                var id = reader.ReadInt32();
-                var beforeId = reader.ReadInt32();
-                var data = reader.ReadUInt16();
-                string? remark = readRemark(reader);
-                bool visible = reader.ReadBoolean();
-
-                moves.Add(new(new CoordPair(data), remark, visible)
+                var moveAfterNum = beforeMoveQueue.Dequeue();
+                var beforeMove = moveAfterNum.Item1;
+                beforeAfterNum = moveAfterNum.Item2;
+                for(int i = 0;i < beforeAfterNum;++i)
                 {
-                    Id = id,
-                    BeforeId = beforeId
-                });
-                return moves;
-            }
-            Parallel.For<List<Move>>(0, allBlockBytes.Count,
-                                () => new(),
-                                bytesToMove,
-                                (finalMoves) =>
-                                {
-                                    foreach(var move in finalMoves)
-                                        allMoves.GetOrAdd(move.Id, move);
-                                }
-                                );
+                    CoordPair coordPair = new(reader.ReadUInt16());
+                    string? remark = null;
+                    if(reader.ReadBoolean())
+                        remark = reader.ReadString();
 
-            Parallel.ForEach<Move>(allMoves.Values, (move) =>
-            {
-                if(move.BeforeId >= 0)
-                    allMoves[move.BeforeId].AddAfterMove(move);
-            });
+                    bool visible = reader.ReadBoolean();
+                    int afterNum = reader.ReadByte();
+
+                    var move = beforeMove.AddAfterMove(coordPair, remark, visible);
+                    if(afterNum > 0)
+                        beforeMoveQueue.Enqueue(Tuple.Create(move, afterNum));
+                }
+            }
         }
-        public void WriteCMParallel(BinaryWriter fileWriter)
+        public void WriteCM(BinaryWriter writer)
         {
-            int id = 0;
-            List<Move> allMoves = new();
-            foreach(var move in _rootMove)
+            Queue<List<Move>> afterMovesQueue = new();
+            afterMovesQueue.Enqueue(new List<Move> { _rootMove });
+            while(afterMovesQueue.Count > 0)
             {
-                move.Id = ++id;
-                move.BeforeId = move.Before?.Id ?? 0;
-                allMoves.Add(move);
+                var afterMoves = afterMovesQueue.Dequeue();
+                foreach(var move in afterMoves)
+                {
+                    writer.Write(move.CoordPair.Data);
+                    writer.Write(move.Remark != null);
+                    if(move.Remark != null)
+                        writer.Write(move.Remark);
+
+                    writer.Write(move.Visible);
+                    writer.Write((byte)move.AfterNum);
+                    var moves = move.AfterMoves();
+                    if(moves != null)
+                        afterMovesQueue.Enqueue(moves);
+                }
             }
-
-            void writeRemark(BinaryWriter writer, Move move)
-            {
-                writer.Write(move.Remark != null);
-                if(move.Remark != null)
-                    writer.Write(move.Remark);
-            }
-
-            BlockingCollection<List<byte>> allBlockBytes = new();
-            List<byte> moveToBytes(int index, ParallelLoopState loop, List<byte> blockByte)
-            {
-                MemoryStream stream = new();
-                using var writer = new BinaryWriter(stream, Encoding.UTF8, false);
-                Move move = allMoves[index];
-                writer.Write(move.Id);
-                writer.Write(move.BeforeId);
-                writer.Write(move.CoordPair.Data);
-                writeRemark(writer, move);
-                writer.Write(move.Visible);
-
-                var moveBytes = stream.ToArray();
-                blockByte.AddRange(BitConverter.GetBytes(moveBytes.Length));
-                blockByte.AddRange(moveBytes);
-                return blockByte;
-            }
-            Parallel.For<List<byte>>(0, allMoves.Count,
-                                () => new(),
-                                moveToBytes,
-                                (finalBlockByte) => allBlockBytes.Add(finalBlockByte)
-                                );
-
-            writeRemark(fileWriter, _rootMove);
-            foreach(var blockBytes in allBlockBytes)
-                fileWriter.Write(blockBytes.ToArray());
         }
+
+        //public void ReadCMParallel(BinaryReader fileReader)
+        //{
+        //    string? readRemark(BinaryReader reader)
+        //    {
+        //        if(reader.ReadBoolean())
+        //            return reader.ReadString();
+
+        //        return null;
+        //    }
+
+        //    _rootMove.Remark = readRemark(fileReader);
+        //    List<byte[]> allBlockBytes = new();
+        //    while(fileReader.BaseStream.Position < fileReader.BaseStream.Length)
+        //    {
+        //        int length = fileReader.ReadInt32();
+        //        allBlockBytes.Add(fileReader.ReadBytes(length));
+        //    }
+
+        //    ConcurrentDictionary<int, Move> allMoves = new();
+        //    allMoves.GetOrAdd(0, _rootMove);
+        //    List<Move> bytesToMove(byte[] blockByte, ParallelLoopState loop, List<Move> moves)
+        //    {
+        //        MemoryStream stream = new(blockByte);
+        //        using var reader = new BinaryReader(stream, Encoding.UTF8, false);
+        //        var id = reader.ReadInt32();
+        //        var beforeId = reader.ReadInt32();
+        //        var data = reader.ReadUInt16();
+        //        string? remark = readRemark(reader);
+        //        bool visible = reader.ReadBoolean();
+
+        //        moves.Add(new(new CoordPair(data), remark, visible)
+        //        {
+        //            Id = id,
+        //            BeforeId = beforeId
+        //        });
+        //        return moves;
+        //    }
+        //    Parallel.ForEach<byte[], List<Move>>(allBlockBytes,
+        //                        () => new(),
+        //                        bytesToMove,
+        //                        (finalMoves) =>
+        //                        {
+        //                            foreach(var move in finalMoves)
+        //                                allMoves.GetOrAdd(move.Id, move);
+        //                        }
+        //                        );
+
+        //    foreach(var move in allMoves.Values)
+        //    {
+        //        int beforeId = move.BeforeId;
+        //        if(beforeId > -1)
+        //            allMoves[beforeId].AddAfterMove(move);
+        //    }
+        //}
+
+        //public void WriteCMParallel(BinaryWriter fileWriter)
+        //{
+        //    int id = 0;
+        //    List<Move> allMoves = new();
+        //    foreach(var move in _rootMove)
+        //    {
+        //        move.Id = ++id;
+        //        move.BeforeId = move.Before?.Id ?? 0;
+        //        allMoves.Add(move);
+        //    }
+
+        //    void writeRemark(BinaryWriter writer, Move move)
+        //    {
+        //        writer.Write(move.Remark != null);
+        //        if(move.Remark != null)
+        //            writer.Write(move.Remark);
+        //    }
+
+        //    BlockingCollection<List<byte>> allBlockBytes = new();
+        //    List<byte> moveToBytes(Move move, ParallelLoopState loop, List<byte> blockByte)
+        //    {
+        //        MemoryStream stream = new();
+        //        using var writer = new BinaryWriter(stream, Encoding.UTF8, false);
+        //        writer.Write(move.Id);
+        //        writer.Write(move.BeforeId);
+        //        writer.Write(move.CoordPair.Data);
+        //        writeRemark(writer, move);
+        //        writer.Write(move.Visible);
+
+        //        var moveBytes = stream.ToArray();
+        //        blockByte.AddRange(BitConverter.GetBytes(moveBytes.Length));
+        //        blockByte.AddRange(moveBytes);
+        //        return blockByte;
+        //    }
+        //    Parallel.ForEach<Move, List<byte>>(allMoves,
+        //                        () => new(),
+        //                        moveToBytes,
+        //                        (finalBlockByte) => allBlockBytes.Add(finalBlockByte)
+        //                        );
+
+        //    writeRemark(fileWriter, _rootMove);
+        //    foreach(var blockBytes in allBlockBytes)
+        //        fileWriter.Write(blockBytes.ToArray());
+        //}
 
         public bool SetBoard(string fen)
         {
             return _board.SetFEN(fen.Split(' ')[0]);
         }
 
-        new public string ToString()
+        public string ToString(bool showMove = false)
         {
-            int count = 0;
-            string result = _board.ToString();
-            result += _rootMove.ToString() + '\n';
+            int moveCount = 0, remarkCount = 0, maxRemarkCount = 0;
+            List<Move> allMoves = new() { _rootMove };
             foreach(var move in _rootMove)
             {
-                result += move.ToString() + '\n';
-                count++;
+                ++moveCount;
+                if(move.Remark != null)
+                {
+                    remarkCount++;
+                    maxRemarkCount = Math.Max(maxRemarkCount, move.Remark.Length);
+                }
+                allMoves.Add(move);
             }
 
-            return result + string.Format($"着法数量：【{count}】\n");
+            BlockingCollection<string> results = new();
+            if(showMove)
+                Parallel.ForEach<Move, string>(allMoves,
+                    () => "",
+                    (move, loop, subString) => subString += move.ToString(),
+                    (finalSubString) => results.Add(finalSubString));
+
+            return _board.ToString()
+                + string.Concat(results)
+                + string.Format($"着法数量【{moveCount}】\t注解数量【{remarkCount}】\t注解最长【{maxRemarkCount}】\n");
         }
 
         private readonly Board _board;

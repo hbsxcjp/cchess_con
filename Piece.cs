@@ -39,7 +39,7 @@ namespace cchess_con
 
         public Seat Seat { get; set; }
 
-        public bool InSeat { get { return Seat != Seat.NullSeat; } }
+        public bool AtSeat { get { return Seat != Seat.NullSeat; } }
         abstract public char Char { get; }
 
         abstract public char Name { get; }

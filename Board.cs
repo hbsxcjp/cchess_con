@@ -194,7 +194,7 @@ namespace cchess_con
             {
                 foreach(var kindPieces in _pieces[(int)(ch < 'a' ? PieceColor.RED : PieceColor.BLACK)])
                     foreach(var piece in kindPieces)
-                        if(piece.Char == ch && !piece.InSeat)
+                        if(piece.Char == ch && !piece.AtSeat)
                             return piece;
 
                 return Piece.NullPiece;
@@ -335,8 +335,7 @@ namespace cchess_con
 
             PieceColor color = RedNumChars.Contains(zhStr[3]) ? PieceColor.RED : PieceColor.BLACK;
             bool isBottom = color == BottomColor;
-            int index = 0,
-                movDir = ("退平进".IndexOf(zhStr[2]) - 1) * (isBottom ? 1 : -1);
+            int index, movDir = ("退平进".IndexOf(zhStr[2]) - 1) * (isBottom ? 1 : -1);
 
             List<Piece> pieces;
             PieceKind kind = GetKind(zhStr[0]);
@@ -459,7 +458,7 @@ namespace cchess_con
             return result + String.Format($"总计：【{total}】\n", total);
         }
 
-        public string ToString(bool hasEdge = true)
+        public string ToString(bool showEdge = true)
         {
             // 棋盘上边标识字符串
             string[] preStr =
@@ -516,7 +515,7 @@ namespace cchess_con
                     textBlankBoard[idx] = seat.Piece.PrintName();
                 }
 
-            if(!hasEdge)
+            if(!showEdge)
                 return textBlankBoard.ToString();
 
             int index = (int)BottomColor;
@@ -527,7 +526,7 @@ namespace cchess_con
         {
             return FilterPiece(delegate (Piece piece, PieceColor color, PieceKind kind, int col)
             {
-                return piece.InSeat && piece.Color == color;
+                return piece.AtSeat && piece.Color == color;
             },
                 color, PieceKind.KING, 0);
         }
@@ -535,7 +534,7 @@ namespace cchess_con
         {
             return FilterPiece(delegate (Piece piece, PieceColor color, PieceKind kind, int col)
             {
-                return piece.InSeat && piece.Color == color && piece.Kind == kind;
+                return piece.AtSeat && piece.Color == color && piece.Kind == kind;
             },
                 color, kind, 0);
         }
@@ -543,7 +542,7 @@ namespace cchess_con
         {
             return FilterPiece(delegate (Piece piece, PieceColor color, PieceKind kind, int col)
             {
-                return piece.InSeat && piece.Color == color && piece.Kind == kind && piece.Seat.Col == col;
+                return piece.AtSeat && piece.Color == color && piece.Kind == kind && piece.Seat.Col == col;
             },
                color, kind, col);
         }
@@ -633,7 +632,6 @@ namespace cchess_con
         private readonly Seat[,] _seats;
 
         private const char FENSplitChar = '/';
-        private const string FEN = "rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR";
 
         private const string RedNumChars = "一二三四五六七八九";
         private const string BlackNumChars = "１２３４５６７８９";
