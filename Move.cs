@@ -8,15 +8,19 @@ using System.Threading.Tasks;
 
 namespace cchess_con
 {
+    internal enum VisibleType
+    {
+        ALL,
+        TRUE,
+        FALSE
+    }
+
     internal class Move: IEnumerable
     {
         public Move(bool visible = true)
         {
             Before = null;
             ToPiece = Piece.NullPiece;
-
-            //Id = 0;
-            //BeforeId = -1;
 
             Visible = visible;
             _AfterMoves = null;
@@ -27,8 +31,8 @@ namespace cchess_con
             Remark = remark;
         }
 
-        //public int Id { get; set; }
-        //public int BeforeId { get; set; }
+        static public Move CreateRootMove() { return new(); }
+
         public Move? Before { get; set; }
         public CoordPair CoordPair { get; set; }
         public string? Remark { get; set; }
@@ -43,66 +47,65 @@ namespace cchess_con
             board[CoordPair.FromCoord].MoveTo(toSeat, Piece.NullPiece);
         }
         public void Undo(Board board)
-        {
-            board[CoordPair.ToCoord].MoveTo(board[CoordPair.FromCoord], ToPiece);
-        }
+            => board[CoordPair.ToCoord].MoveTo(board[CoordPair.FromCoord], ToPiece);
 
         public bool HasAfter { get { return _AfterMoves != null; } }
-        //public bool HasOther { get { return (OtherMoves()?.Count ?? 0) > 0; } }
 
-        static public Move CreateRootMove() { return new(); }
-        public Move AddAfterMove(Move move)
+        public Move AddAfterMove(CoordPair coordPair, string? remark = null, bool visible = true)
+            => AddAfterMove(new Move(coordPair, remark, visible));
+        public Move AddOtherMove(CoordPair coordPair, string? remark = null, bool visible = true)
+            => AddOtherMove(new Move(coordPair, remark, visible));
+
+        // 前置着法堆栈，不含根节点、含自身this
+        public Stack<Move> BeforeMoves()
+        {
+            Stack<Move> moves = new();
+            Move move = this;
+            while(move.Before != null)
+            {
+                moves.Push(move);
+                move = move.Before;
+            }
+
+            return moves;
+        }
+
+        // 后置着法列表
+        public List<Move>? AfterMoves(VisibleType vtype = VisibleType.ALL)
+        {
+            if(_AfterMoves == null || vtype == VisibleType.ALL)
+                return _AfterMoves;
+
+            List<Move> moves = new(_AfterMoves);
+            if(vtype == VisibleType.TRUE)
+                moves.RemoveAll(move => !move.Visible);
+            else
+                moves.RemoveAll(move => move.Visible);
+            return moves;
+        }
+        // 同步变着列表
+        public List<Move>? OtherMoves(VisibleType vtype = VisibleType.TRUE)
+        {
+            return Before?.AfterMoves(vtype) ?? null;
+        }
+
+        new public string ToString() => CoordPair.ToString() + Remark + '\n';
+
+        IEnumerator IEnumerable.GetEnumerator() => (IEnumerator)GetEnumerator();
+
+        public MoveEnum GetEnumerator() => new(this);
+
+        private Move AddAfterMove(Move move)
         {
             move.Before = this;
             (_AfterMoves ??= new()).Add(move);
             return move;
         }
-        public Move AddAfterMove(CoordPair coordPair, string? remark = null, bool visible = true)
-        {
-            return AddAfterMove(new Move(coordPair, remark, visible));
-        }
-
-        public Move AddOtherMove(Move move)
+        private Move AddOtherMove(Move move)
         {
             Before?.AddAfterMove(move);
             return move;
         }
-        public Move AddOtherMove(CoordPair coordPair, string? remark = null, bool visible = true)
-        {
-            return AddOtherMove(new Move(coordPair, remark, visible));
-        }
-
-        //public List<Move> BeforeMoves()
-        //{
-        //    List<Move> moves = new();
-        //    Move move = this;
-        //    while(move.Before != null)
-        //    {
-        //        moves.Insert(0, move);
-        //        move = move.Before;
-        //    }
-
-        //    return moves; // 含自身this
-        //}
-
-        public List<Move>? AfterMoves() => _AfterMoves;
-        //public List<Move>? OtherMoves()
-        //{
-        //    var moves = Before?.AfterMoves() ?? null;
-        //    if(moves != null)
-        //        moves.Remove(this);
-
-        //    return (moves?.Count ?? 0) == 0 ? null : moves;
-        //}
-
-        new public string ToString()
-        {
-            return CoordPair.ToString() + Remark + '\n';
-        }
-
-        IEnumerator IEnumerable.GetEnumerator() => (IEnumerator)GetEnumerator();
-
-        public MoveEnum GetEnumerator() => new(this);
 
         private List<Move>? _AfterMoves;
     }

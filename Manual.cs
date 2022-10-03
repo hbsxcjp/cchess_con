@@ -37,24 +37,11 @@ namespace cchess_con
             //ReadCMParallel(fileName);
         }
 
-        public void Write(string fileName)
-        {
-            WriteCM(fileName);
-            //WriteCMParallel(fileName);
-        }
+        public void Write(string fileName) => WriteCM(fileName);
+        //WriteCMParallel(fileName);
 
-        public string InfoValue(string key) { return _info[key]; }
-        public void SetInfoValue(string key, string value) { _info[key] = value.Trim(); }
-
-        public string ToString(bool showMove = false)
-        {
-            string result = "";
-            foreach(var kv in _info)
-                result += string.Format($"[{kv.Key} \"{kv.Value}\"]\n");
-
-            return result + _manualMove.ToString(showMove) + '\n';
-            //return _manualMove.ToString() + '\n';
-        }
+        public string InfoValue(string key) => _info[key];
+        public void SetInfoValue(string key, string value) => _info[key] = value.Trim();
 
         private void ReadXQF(string fileName)
         {
@@ -361,10 +348,17 @@ namespace cchess_con
         //    _manualMove.WriteCMParallel(writer);
         //}
 
-        private void SetBoard()
+        public string ToString(bool showMove = false)
         {
-            _manualMove.SetBoard(InfoValue("FEN"));
+            string result = "";
+            foreach(var kv in _info)
+                result += string.Format($"[{kv.Key} \"{kv.Value}\"]\n");
+
+            return result + _manualMove.ToString(showMove) + '\n';
+            //return _manualMove.ToString() + '\n';
         }
+
+        private bool SetBoard() => _manualMove.SetBoard(InfoValue("FEN"));
 
         private const string FEN = "rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR";
 
@@ -385,15 +379,8 @@ namespace cchess_con
         public Move CurMove { get; set; }
         public string? CurRemark { get { return CurMove.Remark; } set { CurMove.Remark = value?.Trim(); } }
 
-        //public List<Coord> GetCanPutCoords(Piece piece)
-        //{ return new(); }
-        //public List<Coord> GetCanMoveCoords(Coord fromCoord)
-        //{ return new(); }
-
-        public void AddMove(CoordPair coordPair, string? remark, bool visible, bool isOther)
-        {
-            CurMove = isOther ? CurMove.AddOtherMove(coordPair, remark, visible) : CurMove.AddAfterMove(coordPair, remark, visible);
-        }
+        public List<Coord> GetCanPutCoords(Piece piece) => piece.PutCoord(_board.BottomColor == piece.Color);
+        public List<Coord> GetCanMoveCoords(Coord fromCoord) => _board.CanMoveCoord(fromCoord);
 
         public bool CheckMove(CoordPair coordPair, bool isOther)
         {
@@ -405,18 +392,68 @@ namespace cchess_con
 
             return result;
         }
+        public void AddMove(CoordPair coordPair, string? remark, bool visible, bool isOther)
+        {
+            //CurMove = isOther ? CurMove.AddOtherMove(coordPair, remark, visible) : CurMove.AddAfterMove(coordPair, remark, visible);
 
-        public void BackStart() { CurMove = _rootMove; }
-        //public bool GoNext() // 前进
-        //{ return true; }
-        //public bool BackNext() // 本着非变着，则回退一着
-        //{ return true; }
-        //public bool GoOther() // 前进变着
-        //{ return true; }
-        //public bool BackOther() // 回退变着
-        //{ return true; }
-        //public bool GoTo(Move move) // 前进至指定move
-        //{ return true; }
+            if(!CheckMove(coordPair, isOther))
+                Console.WriteLine("Error: " + _board.ToString() + coordPair.ToString() + remark);
+
+            if(isOther)
+            {
+                CurMove.AddOtherMove(coordPair, remark, visible);
+                GoRight();
+            }
+            else
+            {
+                CurMove.AddAfterMove(coordPair, remark, visible);
+                Go();
+            }
+        }
+
+        public bool Go() // 前进
+        {
+            var afterMoves = CurMove.AfterMoves(VisibleType.TRUE);
+            if(afterMoves == null)
+                return false;
+
+            CurMove = afterMoves[0];
+            CurMove.Done(_board);
+            return true;
+        }
+        public bool GoLeft() { return GoOther(true); }
+        public bool GoRight() { return GoOther(false); }
+        public void GoEnd() // 前进到底
+        {
+            while(Go())
+                ;
+        }
+        public bool Back() // 回退
+        {
+            if(CurMove.Before == null)
+                return false;
+
+            CurMove.Undo(_board);
+            CurMove = CurMove.Before;
+            return true;
+        }
+        public void BackStart() // 回退到开始
+        {
+            while(Back())
+                ;
+        }
+        public bool GoTo(Move move) // 转至指定move
+        {
+            if(CurMove == move)
+                return false;
+
+            var moves = CurMove.BeforeMoves();
+            while(moves.Count > 0)
+                moves.Pop().Done(_board);
+
+            CurMove = move;
+            return true;
+        }
 
         public void ReadCM(BinaryReader reader)
         {
@@ -572,10 +609,7 @@ namespace cchess_con
         //        fileWriter.Write(blockBytes.ToArray());
         //}
 
-        public bool SetBoard(string fen)
-        {
-            return _board.SetFEN(fen.Split(' ')[0]);
-        }
+        public bool SetBoard(string fen) => _board.SetFEN(fen.Split(' ')[0]);
 
         public string ToString(bool showMove = false)
         {
@@ -602,6 +636,23 @@ namespace cchess_con
             return _board.ToString()
                 + string.Concat(results)
                 + string.Format($"着法数量【{moveCount}】\t注解数量【{remarkCount}】\t注解最长【{maxRemarkCount}】\n");
+        }
+
+        private bool GoOther(bool isLeft) // 变着
+        {
+            var otherMoves = CurMove.OtherMoves();
+            if(otherMoves == null)
+                return false;
+
+            int index = otherMoves.IndexOf(CurMove);
+            if((isLeft && index == 0)
+                || (!isLeft && index == otherMoves.Count - 1))
+                return false;
+
+            CurMove.Undo(_board);
+            CurMove = otherMoves[index + (isLeft ? -1 : 1)];
+            CurMove.Done(_board);
+            return true;
         }
 
         private readonly Board _board;
