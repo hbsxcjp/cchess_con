@@ -228,9 +228,7 @@ namespace cchess_con
             bool isBottom = Seat.IsBottom;
             int Row = Seat.Row,
                 Col = Seat.Col;
-            int minRow = isBottom ? 0 : 5,
-                midRow = isBottom ? 2 : 7,
-                maxRow = isBottom ? 4 : 9;
+            int maxRow = isBottom ? 4 : 9;
             void AddCoord(int row, int col)
             {
                 if(board[(row + Row) / 2, (col + Col) / 2].IsNull)
