@@ -52,18 +52,20 @@ namespace cchess_con
         public bool HasAfter { get { return _AfterMoves != null; } }
 
         public Move AddAfterMove(CoordPair coordPair, string? remark = null, bool visible = true)
-            => AddAfterMove(new Move(coordPair, remark, visible));
-        public Move AddOtherMove(CoordPair coordPair, string? remark = null, bool visible = true)
-            => AddOtherMove(new Move(coordPair, remark, visible));
-
-        // 前置着法堆栈，不含根节点、含自身this
-        public Stack<Move> BeforeMoves()
         {
-            Stack<Move> moves = new();
+            Move move = new(coordPair, remark, visible) { Before = this };
+            (_AfterMoves ??= new()).Add(move);
+            return move;
+        }
+
+        // 前置着法列表，不含根节点、含自身this
+        public List<Move> BeforeMoves()
+        {
+            List<Move> moves = new();
             Move move = this;
             while(move.Before != null)
             {
-                moves.Push(move);
+                moves.Insert(0, move);
                 move = move.Before;
             }
 
@@ -84,9 +86,12 @@ namespace cchess_con
             return moves;
         }
         // 同步变着列表
-        public List<Move>? OtherMoves(VisibleType vtype = VisibleType.TRUE)
+        public List<Move>? OtherMoves(VisibleType vtype = VisibleType.TRUE) => Before?.AfterMoves(vtype) ?? null;
+
+        public void ClearAfterMovesError(ManualMove manualMove)
         {
-            return Before?.AfterMoves(vtype) ?? null;
+            if(_AfterMoves != null)
+                _AfterMoves.RemoveAll(move => !manualMove.CurMoveAccept(move.CoordPair));
         }
 
         new public string ToString() => CoordPair.ToString() + Remark + '\n';
@@ -94,18 +99,6 @@ namespace cchess_con
         IEnumerator IEnumerable.GetEnumerator() => (IEnumerator)GetEnumerator();
 
         public MoveEnum GetEnumerator() => new(this);
-
-        private Move AddAfterMove(Move move)
-        {
-            move.Before = this;
-            (_AfterMoves ??= new()).Add(move);
-            return move;
-        }
-        private Move AddOtherMove(Move move)
-        {
-            Before?.AddAfterMove(move);
-            return move;
-        }
 
         private List<Move>? _AfterMoves;
     }

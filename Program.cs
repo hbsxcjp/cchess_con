@@ -59,47 +59,42 @@ static void TestBoard()
 
 static void TestManual()
 {
-    string[] fileNames = {
-        "01.XQF",
-        "4四量拨千斤.XQF",
-        "第09局.XQF",
-        "布局陷阱--飞相局对金钩炮.XQF",
-        "- 北京张强 (和) 上海胡荣华 (1993.4.27于南京).xqf",
-
-        //"中炮对屏风马.XQF",
-        //"中炮【马8进7】.XQF",
-        //"黑用开局库.XQF",
-        //"仙人指路全集（史上最全最新版）.XQF",
-        //"飞相局【卒7进1】.XQF",
-        //"中炮【马2进3】.XQF"
-
-        //"中炮对屏风马.cm",
-        //"中炮【马8进7】.cm",
-        //"黑用开局库.cm",
-        //"仙人指路全集（史上最全最新版）.cm",
-        //"飞相局【卒7进1】.cm",
-        //"中炮【马2进3】.cm"
-    };
-
     string path = output + @"TestManual.txt";
+    string[] fileNames = {
+        "01",
+        "4四量拨千斤",
+        "第09局",
+        "布局陷阱--飞相局对金钩炮",
+        "- 北京张强 (和) 上海胡荣华 (1993.4.27于南京)",
+
+        "中炮对屏风马",
+        "中炮【马8进7】",
+        "黑用开局库",
+        "仙人指路全集（史上最全最新版）",
+        "飞相局【卒7进1】",
+        "中炮【马2进3】"
+    };
+    string[] extName = { ".xqf", ".cm" };
 
     Stopwatch stopWatch = new();
     stopWatch.Restart();
     //Thread.Sleep(10000);
 
+    //var action = FileAction.XQF_CM;
+    var action = FileAction.CM_CM;
     using StreamWriter sw = File.CreateText(path);
     foreach(string fileName in fileNames)
     {
-        Manual manual = new(output + fileName);
-        sw.WriteLine(fileName);
-        sw.Write(manual.ToString()); // true
+        string theFileName = output + fileName;
+        string fromFileName = theFileName + extName[action == FileAction.XQF_CM ? 0 : 1];
+        string toFileName = theFileName + (action == FileAction.XQF_CM ? "" : "-副本") + extName[1];
 
-        //string cmFileName = output + fileName[..fileName.LastIndexOf('.')] + ".cm"; // 
-        //string cmFileName = output + "副本-" + fileName[..fileName.LastIndexOf('.')] + ".cm"; // 
-        //manual.Write(cmFileName);
+        Manual manual = new(fromFileName);
+        manual.Write(toFileName);
 
-        //Manual twoManual = new(cmFileName);
-        //sw.Write(twoManual.ToString());
+        sw.Write(fromFileName[(fromFileName.LastIndexOf('\\') + 1)..] + " => "
+            + toFileName[(toFileName.LastIndexOf('\\') + 1)..] + "\n"
+            + manual.ToString()); // true
     }
 
     stopWatch.Stop();

@@ -18,6 +18,12 @@ using System.Xml;
 
 namespace cchess_con
 {
+    internal enum FileAction
+    {
+        XQF_CM,
+        CM_CM
+    }
+
     internal class Manual
     {
         public Manual()
@@ -34,11 +40,9 @@ namespace cchess_con
                 ReadXQF(fileName);
             else
                 ReadCM(fileName);
-            //ReadCMParallel(fileName);
         }
 
         public void Write(string fileName) => WriteCM(fileName);
-        //WriteCMParallel(fileName);
 
         public string InfoValue(string key) => _info[key];
         public void SetInfoValue(string key, string value) => _info[key] = value.Trim();
@@ -269,7 +273,9 @@ namespace cchess_con
                 }
                 else
                 {
-                    _manualMove.AddMove(coordPair, remark, true, isOther);
+                    if(isOther)
+                        _manualMove.Back();
+                    _manualMove.AddMove(coordPair, remark, true);
                     //Console.WriteLine("_manualMove.CurMove: " + _manualMove.CurMove.ToString());
 
                     if(hasNext && hasOther)
@@ -277,9 +283,15 @@ namespace cchess_con
 
                     isOther = !hasNext;
                     if(isOther && !hasOther && beforeMoves.Count > 0)
-                        _manualMove.CurMove = beforeMoves.Pop(); // 最后时，将回退到根
+                    {
+                        var beforeMove = beforeMoves.Pop(); // 最后时，将回退到根
+                        while(beforeMove != _manualMove.CurMove)
+                            _manualMove.Back();
+                    }
                 }
             }
+
+            _manualMove.ClearError(); // 清除XQF带来的错误着法
         }
 
         private void ReadCM(string fileName)
@@ -315,39 +327,6 @@ namespace cchess_con
             _manualMove.WriteCM(writer);
         }
 
-        //private void ReadCMParallel(string fileName)
-        //{
-        //    if(!File.Exists(fileName))
-        //        return;
-
-        //    using var stream = File.Open(fileName, FileMode.Open);
-        //    using var reader = new BinaryReader(stream, Encoding.UTF8, false);
-        //    int count = reader.ReadInt32();
-        //    for(int i = 0;i < count;i++)
-        //    {
-        //        string key = reader.ReadString();
-        //        string value = reader.ReadString();
-        //        _info[key] = value;
-        //    }
-        //    SetBoard();
-
-        //    _manualMove.ReadCMParallel(reader);
-        //}
-        //private void WriteCMParallel(string fileName)
-        //{
-        //    using var stream = File.Open(fileName, FileMode.Create);
-        //    using var writer = new BinaryWriter(stream, Encoding.UTF8, false);
-
-        //    writer.Write(_info.Count);
-        //    foreach(var kv in _info)
-        //    {
-        //        writer.Write(kv.Key);
-        //        writer.Write(kv.Value);
-        //    }
-
-        //    _manualMove.WriteCMParallel(writer);
-        //}
-
         public string ToString(bool showMove = false)
         {
             string result = "";
@@ -366,7 +345,7 @@ namespace cchess_con
         private readonly ManualMove _manualMove;
     }
 
-    internal class ManualMove
+    internal class ManualMove: IEnumerable
     {
         public ManualMove()
         {
@@ -375,40 +354,20 @@ namespace cchess_con
             CurMove = _rootMove;
         }
 
-        //public Move RootMove { get { return _rootMove; } }
         public Move CurMove { get; set; }
         public string? CurRemark { get { return CurMove.Remark; } set { CurMove.Remark = value?.Trim(); } }
 
         public List<Coord> GetCanPutCoords(Piece piece) => piece.PutCoord(_board.BottomColor == piece.Color);
         public List<Coord> GetCanMoveCoords(Coord fromCoord) => _board.CanMoveCoord(fromCoord);
 
-        public bool CheckMove(CoordPair coordPair, bool isOther)
+        public bool CurMoveAccept(CoordPair coordPair) => _board.CanMoveCoord(coordPair.FromCoord).Contains(coordPair.ToCoord);
+
+        public void AddMove(CoordPair coordPair, string? remark, bool visible)
         {
-            if(isOther)
-                CurMove.Undo(_board);
-            bool result = _board.CanMoveCoord(coordPair.FromCoord).Contains(coordPair.ToCoord);
-            if(isOther)
-                CurMove.Done(_board);
+            //if(!CheckMove(coordPair))
+            //Console.WriteLine("Error: " + _board.ToString() + coordPair.ToString() + remark);
 
-            return result;
-        }
-        public void AddMove(CoordPair coordPair, string? remark, bool visible, bool isOther)
-        {
-            //CurMove = isOther ? CurMove.AddOtherMove(coordPair, remark, visible) : CurMove.AddAfterMove(coordPair, remark, visible);
-
-            if(!CheckMove(coordPair, isOther))
-                Console.WriteLine("Error: " + _board.ToString() + coordPair.ToString() + remark);
-
-            if(isOther)
-            {
-                CurMove.AddOtherMove(coordPair, remark, visible);
-                GoRight();
-            }
-            else
-            {
-                CurMove.AddAfterMove(coordPair, remark, visible);
-                Go();
-            }
+            GoMove(CurMove.AddAfterMove(coordPair, remark, visible));
         }
 
         public bool Go() // 前进
@@ -417,12 +376,24 @@ namespace cchess_con
             if(afterMoves == null)
                 return false;
 
-            CurMove = afterMoves[0];
-            CurMove.Done(_board);
+            GoMove(afterMoves[0]);
             return true;
         }
-        public bool GoLeft() { return GoOther(true); }
-        public bool GoRight() { return GoOther(false); }
+        public bool GoOther(bool isLeft) // 变着
+        {
+            var otherMoves = CurMove.OtherMoves();
+            if(otherMoves == null)
+                return false;
+
+            int index = otherMoves.IndexOf(CurMove);
+            if((isLeft && index == 0)
+                || (!isLeft && index == otherMoves.Count - 1))
+                return false;
+
+            CurMove.Undo(_board);
+            GoMove(otherMoves[index + (isLeft ? -1 : 1)]);
+            return true;
+        }
         public void GoEnd() // 前进到底
         {
             while(Go())
@@ -447,11 +418,10 @@ namespace cchess_con
             if(CurMove == move)
                 return false;
 
-            var moves = CurMove.BeforeMoves();
-            while(moves.Count > 0)
-                moves.Pop().Done(_board);
+            BackStart();
+            foreach(var mv in move.BeforeMoves())
+                GoMove(mv);
 
-            CurMove = move;
             return true;
         }
 
@@ -509,105 +479,19 @@ namespace cchess_con
             }
         }
 
-        //public void ReadCMParallel(BinaryReader fileReader)
-        //{
-        //    string? readRemark(BinaryReader reader)
-        //    {
-        //        if(reader.ReadBoolean())
-        //            return reader.ReadString();
 
-        //        return null;
-        //    }
+        public void ClearError()
+        {
+            _rootMove.ClearAfterMovesError(this);
+            foreach(var move in this)
+            {
+                move.Done(_board);
+                move.ClearAfterMovesError(this);
+                move.Undo(_board);
+            }
 
-        //    _rootMove.Remark = readRemark(fileReader);
-        //    List<byte[]> allBlockBytes = new();
-        //    while(fileReader.BaseStream.Position < fileReader.BaseStream.Length)
-        //    {
-        //        int length = fileReader.ReadInt32();
-        //        allBlockBytes.Add(fileReader.ReadBytes(length));
-        //    }
-
-        //    ConcurrentDictionary<int, Move> allMoves = new();
-        //    allMoves.GetOrAdd(0, _rootMove);
-        //    List<Move> bytesToMove(byte[] blockByte, ParallelLoopState loop, List<Move> moves)
-        //    {
-        //        MemoryStream stream = new(blockByte);
-        //        using var reader = new BinaryReader(stream, Encoding.UTF8, false);
-        //        var id = reader.ReadInt32();
-        //        var beforeId = reader.ReadInt32();
-        //        var data = reader.ReadUInt16();
-        //        string? remark = readRemark(reader);
-        //        bool visible = reader.ReadBoolean();
-
-        //        moves.Add(new(new CoordPair(data), remark, visible)
-        //        {
-        //            Id = id,
-        //            BeforeId = beforeId
-        //        });
-        //        return moves;
-        //    }
-        //    Parallel.ForEach<byte[], List<Move>>(allBlockBytes,
-        //                        () => new(),
-        //                        bytesToMove,
-        //                        (finalMoves) =>
-        //                        {
-        //                            foreach(var move in finalMoves)
-        //                                allMoves.GetOrAdd(move.Id, move);
-        //                        }
-        //                        );
-
-        //    foreach(var move in allMoves.Values)
-        //    {
-        //        int beforeId = move.BeforeId;
-        //        if(beforeId > -1)
-        //            allMoves[beforeId].AddAfterMove(move);
-        //    }
-        //}
-
-        //public void WriteCMParallel(BinaryWriter fileWriter)
-        //{
-        //    int id = 0;
-        //    List<Move> allMoves = new();
-        //    foreach(var move in _rootMove)
-        //    {
-        //        move.Id = ++id;
-        //        move.BeforeId = move.Before?.Id ?? 0;
-        //        allMoves.Add(move);
-        //    }
-
-        //    void writeRemark(BinaryWriter writer, Move move)
-        //    {
-        //        writer.Write(move.Remark != null);
-        //        if(move.Remark != null)
-        //            writer.Write(move.Remark);
-        //    }
-
-        //    BlockingCollection<List<byte>> allBlockBytes = new();
-        //    List<byte> moveToBytes(Move move, ParallelLoopState loop, List<byte> blockByte)
-        //    {
-        //        MemoryStream stream = new();
-        //        using var writer = new BinaryWriter(stream, Encoding.UTF8, false);
-        //        writer.Write(move.Id);
-        //        writer.Write(move.BeforeId);
-        //        writer.Write(move.CoordPair.Data);
-        //        writeRemark(writer, move);
-        //        writer.Write(move.Visible);
-
-        //        var moveBytes = stream.ToArray();
-        //        blockByte.AddRange(BitConverter.GetBytes(moveBytes.Length));
-        //        blockByte.AddRange(moveBytes);
-        //        return blockByte;
-        //    }
-        //    Parallel.ForEach<Move, List<byte>>(allMoves,
-        //                        () => new(),
-        //                        moveToBytes,
-        //                        (finalBlockByte) => allBlockBytes.Add(finalBlockByte)
-        //                        );
-
-        //    writeRemark(fileWriter, _rootMove);
-        //    foreach(var blockBytes in allBlockBytes)
-        //        fileWriter.Write(blockBytes.ToArray());
-        //}
+            BackStart();
+        }
 
         public bool SetBoard(string fen) => _board.SetFEN(fen.Split(' ')[0]);
 
@@ -638,24 +522,66 @@ namespace cchess_con
                 + string.Format($"着法数量【{moveCount}】\t注解数量【{remarkCount}】\t注解最长【{maxRemarkCount}】\n");
         }
 
-        private bool GoOther(bool isLeft) // 变着
-        {
-            var otherMoves = CurMove.OtherMoves();
-            if(otherMoves == null)
-                return false;
+        IEnumerator IEnumerable.GetEnumerator() => (IEnumerator)GetEnumerator();
+        public ManualMoveEnum GetEnumerator() => new(this);
 
-            int index = otherMoves.IndexOf(CurMove);
-            if((isLeft && index == 0)
-                || (!isLeft && index == otherMoves.Count - 1))
-                return false;
-
-            CurMove.Undo(_board);
-            CurMove = otherMoves[index + (isLeft ? -1 : 1)];
-            CurMove.Done(_board);
-            return true;
-        }
+        private void GoMove(Move move) => (CurMove = move).Done(_board);
 
         private readonly Board _board;
         private readonly Move _rootMove;
+    }
+
+    internal class ManualMoveEnum: IEnumerator
+    {
+        public ManualMoveEnum(ManualMove manualMove)
+        {
+            _current = manualMove.CurMove;
+            _ManualMove = manualMove;
+            _BeforeAfterMoves = new();
+
+            Reset();
+        }
+
+        public void Reset()
+        {
+            _ManualMove.BackStart();
+            _BeforeAfterMoves.Clear();
+            SetCurrentEnqueueAfterMoves(_ManualMove.CurMove);
+        }
+
+        // 迭代不含根节点，棋局执行至当前之前着，当前着法未执行
+        public bool MoveNext()
+        {
+            if(_BeforeAfterMoves.Count > 0)
+            {
+                var beforeAfterMove = _BeforeAfterMoves.Dequeue();
+                if(beforeAfterMove.Item1 != null)
+                    _ManualMove.GoTo(beforeAfterMove.Item1);
+
+                SetCurrentEnqueueAfterMoves(beforeAfterMove.Item2);
+                return true;
+            }
+
+            return false;
+        }
+
+        object IEnumerator.Current { get { return Current; } }
+
+        public Move Current { get { return _current; } }
+
+        private void SetCurrentEnqueueAfterMoves(Move beforeMove)
+        {
+            _current = beforeMove;
+            var afterMoves = beforeMove.AfterMoves();
+            if(afterMoves == null)
+                return;
+
+            foreach(var move in afterMoves)
+                _BeforeAfterMoves.Enqueue(Tuple.Create<Move?, Move>(beforeMove, move));
+        }
+
+        private Move _current;
+        private readonly ManualMove _ManualMove;
+        private readonly Queue<Tuple<Move?, Move>> _BeforeAfterMoves;
     }
 }
