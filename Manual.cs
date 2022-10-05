@@ -41,11 +41,21 @@ namespace cchess_con
             else
                 ReadCM(fileName);
         }
-
         public void Write(string fileName) => WriteCM(fileName);
+
+        public List<Aspect> GetAspects() => _manualMove.GetAspects();
 
         public string InfoValue(string key) => _info[key];
         public void SetInfoValue(string key, string value) => _info[key] = value.Trim();
+        public string ToString(bool showMove = false, bool isOrder = false)
+        {
+            string result = "";
+            foreach(var kv in _info)
+                result += string.Format($"[{kv.Key} \"{kv.Value}\"]\n");
+
+            return result + _manualMove.ToString(showMove, isOrder);
+            //return _manualMove.ToString() + '\n';
+        }
 
         private void ReadXQF(string fileName)
         {
@@ -293,7 +303,6 @@ namespace cchess_con
 
             _manualMove.ClearError(); // 清除XQF带来的错误着法
         }
-
         private void ReadCM(string fileName)
         {
             if(!File.Exists(fileName))
@@ -327,18 +336,7 @@ namespace cchess_con
             _manualMove.WriteCM(writer);
         }
 
-        public string ToString(bool showMove = false)
-        {
-            string result = "";
-            foreach(var kv in _info)
-                result += string.Format($"[{kv.Key} \"{kv.Value}\"]\n");
-
-            return result + _manualMove.ToString(showMove) + '\n';
-            //return _manualMove.ToString() + '\n';
-        }
-
         private bool SetBoard() => _manualMove.SetBoard(InfoValue("FEN"));
-
         private const string FEN = "rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR";
 
         private readonly Dictionary<string, string> _info;
@@ -352,6 +350,7 @@ namespace cchess_con
             _board = new();
             _rootMove = Move.CreateRootMove();
             CurMove = _rootMove;
+            EnumMoveDoned = false;
         }
 
         public Move CurMove { get; set; }
@@ -359,9 +358,8 @@ namespace cchess_con
 
         public List<Coord> GetCanPutCoords(Piece piece) => piece.PutCoord(_board.BottomColor == piece.Color);
         public List<Coord> GetCanMoveCoords(Coord fromCoord) => _board.CanMoveCoord(fromCoord);
-
         public bool CurMoveAccept(CoordPair coordPair) => _board.CanMoveCoord(coordPair.FromCoord).Contains(coordPair.ToCoord);
-
+        public bool SetBoard(string fen) => _board.SetFEN(fen.Split(' ')[0]);
         public void AddMove(CoordPair coordPair, string? remark, bool visible)
         {
             //if(!CheckMove(coordPair))
@@ -413,9 +411,9 @@ namespace cchess_con
             while(Back())
                 ;
         }
-        public bool GoTo(Move move) // 转至指定move
+        public bool GoTo(Move? move) // 转至指定move
         {
-            if(CurMove == move)
+            if(CurMove == move || move == null)
                 return false;
 
             BackStart();
@@ -427,61 +425,77 @@ namespace cchess_con
 
         public void ReadCM(BinaryReader reader)
         {
-            reader.ReadUInt16(); // Data
-            if(reader.ReadBoolean())
-                _rootMove.Remark = reader.ReadString();
-            reader.ReadBoolean(); // Visible 
-            int beforeAfterNum = reader.ReadByte();
-
-            Queue<Tuple<Move, int>> beforeMoveQueue = new();
-            beforeMoveQueue.Enqueue(Tuple.Create(_rootMove, beforeAfterNum));
-            while(beforeMoveQueue.Count > 0)
+            static (string? remark, int afterNum) readRemarkAfterNum(BinaryReader reader)
             {
-                var moveAfterNum = beforeMoveQueue.Dequeue();
+                string? remark = null;
+                if(reader.ReadBoolean())
+                    remark = reader.ReadString();
+
+                int afterNum = reader.ReadByte();
+                return (remark, afterNum);
+            }
+
+            var rootRemarkAfterNum = readRemarkAfterNum(reader);
+            _rootMove.Remark = rootRemarkAfterNum.remark;
+
+            Queue<Tuple<Move, int>> moveAfterNumQueue = new();
+            moveAfterNumQueue.Enqueue(Tuple.Create(_rootMove, rootRemarkAfterNum.afterNum));
+            while(moveAfterNumQueue.Count > 0)
+            {
+                var moveAfterNum = moveAfterNumQueue.Dequeue();
                 var beforeMove = moveAfterNum.Item1;
-                beforeAfterNum = moveAfterNum.Item2;
-                for(int i = 0;i < beforeAfterNum;++i)
+                int afterNum = moveAfterNum.Item2;
+                for(int i = 0;i < afterNum;++i)
                 {
-                    CoordPair coordPair = new(reader.ReadUInt16());
-                    string? remark = null;
-                    if(reader.ReadBoolean())
-                        remark = reader.ReadString();
-
                     bool visible = reader.ReadBoolean();
-                    int afterNum = reader.ReadByte();
+                    CoordPair coordPair = new(reader.ReadUInt16());
+                    var remarkAfterNum = readRemarkAfterNum(reader);
 
-                    var move = beforeMove.AddAfterMove(coordPair, remark, visible);
-                    if(afterNum > 0)
-                        beforeMoveQueue.Enqueue(Tuple.Create(move, afterNum));
+                    var move = beforeMove.AddAfterMove(coordPair, remarkAfterNum.remark, visible);
+                    if(remarkAfterNum.afterNum > 0)
+                        moveAfterNumQueue.Enqueue(Tuple.Create(move, remarkAfterNum.afterNum));
                 }
             }
         }
         public void WriteCM(BinaryWriter writer)
         {
-            Queue<List<Move>> afterMovesQueue = new();
-            afterMovesQueue.Enqueue(new List<Move> { _rootMove });
-            while(afterMovesQueue.Count > 0)
+            static void writeRemarkAfterNum(BinaryWriter writer, string? remark, int afterNum)
             {
-                var afterMoves = afterMovesQueue.Dequeue();
-                foreach(var move in afterMoves)
-                {
-                    writer.Write(move.CoordPair.Data);
-                    writer.Write(move.Remark != null);
-                    if(move.Remark != null)
-                        writer.Write(move.Remark);
+                writer.Write(remark != null);
+                if(remark != null)
+                    writer.Write(remark);
+                writer.Write((byte)afterNum);
+            }
 
-                    writer.Write(move.Visible);
-                    writer.Write((byte)move.AfterNum);
-                    var moves = move.AfterMoves();
-                    if(moves != null)
-                        afterMovesQueue.Enqueue(moves);
-                }
+            writeRemarkAfterNum(writer, _rootMove.Remark, _rootMove.AfterNum);
+            foreach(var move in this)
+            {
+                writer.Write(move.Visible);
+                writer.Write(move.CoordPair.Data);
+                writeRemarkAfterNum(writer, move.Remark, move.AfterNum);
             }
         }
 
+        public List<Aspect> GetAspects()
+        {
+            List<Aspect> aspects = new();
+
+            var oldEnumMoveDoned = EnumMoveDoned;
+            EnumMoveDoned = true;
+            foreach(var move in this)
+            {
+                var coordPair = move.CoordPair;
+                aspects.Add(new Aspect(_board.GetFEN(), _board[coordPair.FromCoord].Piece.Color, coordPair.Data));
+            }
+            EnumMoveDoned = oldEnumMoveDoned;
+
+            return aspects;
+        }
 
         public void ClearError()
         {
+            var oldEnumMoveDoned = EnumMoveDoned;
+            EnumMoveDoned = true;
             _rootMove.ClearAfterMovesError(this);
             foreach(var move in this)
             {
@@ -489,17 +503,15 @@ namespace cchess_con
                 move.ClearAfterMovesError(this);
                 move.Undo(_board);
             }
-
-            BackStart();
+            EnumMoveDoned = oldEnumMoveDoned;
         }
 
-        public bool SetBoard(string fen) => _board.SetFEN(fen.Split(' ')[0]);
-
-        public string ToString(bool showMove = false)
+        public string ToString(bool showMove = false, bool isOrder = false)
         {
             int moveCount = 0, remarkCount = 0, maxRemarkCount = 0;
-            List<Move> allMoves = new() { _rootMove };
-            foreach(var move in _rootMove)
+            string moveString = _rootMove.ToString();
+            List<Move> allMoves = new();
+            foreach(var move in this)
             {
                 ++moveCount;
                 if(move.Remark != null)
@@ -507,23 +519,32 @@ namespace cchess_con
                     remarkCount++;
                     maxRemarkCount = Math.Max(maxRemarkCount, move.Remark.Length);
                 }
-                allMoves.Add(move);
+                if(showMove)
+                {
+                    if(isOrder)
+                        moveString += move.ToString();
+                    else
+                        allMoves.Add(move);
+                }
             }
 
-            BlockingCollection<string> results = new();
-            if(showMove)
+            if(showMove && !isOrder)
+            {
+                BlockingCollection<string> results = new();
                 Parallel.ForEach<Move, string>(allMoves,
                     () => "",
                     (move, loop, subString) => subString += move.ToString(),
                     (finalSubString) => results.Add(finalSubString));
+                moveString += string.Concat(results);
+            }
+            moveString += string.Format($"着法数量【{moveCount}】\t注解数量【{remarkCount}】\t注解最长【{maxRemarkCount}】\n\n");
 
-            return _board.ToString()
-                + string.Concat(results)
-                + string.Format($"着法数量【{moveCount}】\t注解数量【{remarkCount}】\t注解最长【{maxRemarkCount}】\n");
+            return _board.ToString() + moveString;
         }
 
         IEnumerator IEnumerable.GetEnumerator() => (IEnumerator)GetEnumerator();
         public ManualMoveEnum GetEnumerator() => new(this);
+        public bool EnumMoveDoned { get; set; }
 
         private void GoMove(Move move) => (CurMove = move).Done(_board);
 
@@ -535,53 +556,56 @@ namespace cchess_con
     {
         public ManualMoveEnum(ManualMove manualMove)
         {
-            _current = manualMove.CurMove;
-            _ManualMove = manualMove;
-            _BeforeAfterMoves = new();
+            _manualMove = manualMove;
+            _moveQueue = new();
+            _curMove = manualMove.CurMove; // 消除未赋值警示
 
             Reset();
         }
 
         public void Reset()
         {
-            _ManualMove.BackStart();
-            _BeforeAfterMoves.Clear();
-            SetCurrentEnqueueAfterMoves(_ManualMove.CurMove);
+            _manualMove.BackStart();
+            _moveQueue.Clear();
+            _id = 0;
+            SetCurrentEnqueueAfterMoves(_manualMove.CurMove);
         }
 
-        // 迭代不含根节点，棋局执行至当前之前着，当前着法未执行
+        // 迭代不含根节点。如执行着法，棋局执行至当前之前着，当前着法未执行
         public bool MoveNext()
         {
-            if(_BeforeAfterMoves.Count > 0)
+            if(_moveQueue.Count == 0)
             {
-                var beforeAfterMove = _BeforeAfterMoves.Dequeue();
-                if(beforeAfterMove.Item1 != null)
-                    _ManualMove.GoTo(beforeAfterMove.Item1);
-
-                SetCurrentEnqueueAfterMoves(beforeAfterMove.Item2);
-                return true;
+                if(_manualMove.EnumMoveDoned)
+                    _manualMove.BackStart();
+                return false;
             }
 
-            return false;
+            SetCurrentEnqueueAfterMoves(_moveQueue.Dequeue());
+            return true;
         }
 
         object IEnumerator.Current { get { return Current; } }
 
-        public Move Current { get { return _current; } }
+        public Move Current { get { return _curMove; } }
 
-        private void SetCurrentEnqueueAfterMoves(Move beforeMove)
+        private void SetCurrentEnqueueAfterMoves(Move curMove)
         {
-            _current = beforeMove;
-            var afterMoves = beforeMove.AfterMoves();
-            if(afterMoves == null)
-                return;
+            _curMove = curMove;
+            _curMove.Id = _id++;
+            // 根据枚举特性判断是否执行着法
+            if(_manualMove.EnumMoveDoned)
+                _manualMove.GoTo(_curMove.Before);
 
-            foreach(var move in afterMoves)
-                _BeforeAfterMoves.Enqueue(Tuple.Create<Move?, Move>(beforeMove, move));
+            var afterMoves = _curMove.AfterMoves();
+            if(afterMoves != null)
+                foreach(var move in afterMoves)
+                    _moveQueue.Enqueue(move);
         }
 
-        private Move _current;
-        private readonly ManualMove _ManualMove;
-        private readonly Queue<Tuple<Move?, Move>> _BeforeAfterMoves;
+        private int _id;
+        private Move _curMove;
+        private readonly ManualMove _manualMove;
+        private readonly Queue<Move> _moveQueue;
     }
 }

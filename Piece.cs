@@ -25,7 +25,7 @@ namespace cchess_con
         NoKind = -1
     }
 
-    abstract internal class Piece
+    internal abstract class Piece
     {
         public Piece(PieceColor color)
         {
@@ -62,11 +62,11 @@ namespace cchess_con
             get { return (Color == PieceColor.RED ? "红" : "黑") + PrintName() + Char + Seat.Coord.ToString(); }
         }
 
-        static public readonly Piece NullPiece = new NullPiece();
+        public static readonly Piece NullPiece = new NullPiece();
 
-        static protected void AddColorCoord(List<Coord> coords, Board board, Coord coord, PieceColor color)
+        protected static void AddCoordDifColor(List<Coord> coords, Board board, Coord coord, PieceColor color)
         {
-            if(!board.IsColor(coord, color))
+            if(board[coord].Piece.Color != color)
                 coords.Add(coord);
         }
 
@@ -124,13 +124,13 @@ namespace cchess_con
             int Row = Seat.Row,
                 Col = Seat.Col;
             if(Col > 3)
-                AddColorCoord(coords, board, new(Row, Col - 1), Color);
+                AddCoordDifColor(coords, board, new(Row, Col - 1), Color);
             if(Col < 5)
-                AddColorCoord(coords, board, new(Row, Col + 1), Color);
+                AddCoordDifColor(coords, board, new(Row, Col + 1), Color);
             if(Row < (isBottom ? 2 : 9))
-                AddColorCoord(coords, board, new(Row + 1, Col), Color);
+                AddCoordDifColor(coords, board, new(Row + 1, Col), Color);
             if(Row > (isBottom ? 0 : 7))
-                AddColorCoord(coords, board, new(Row - 1, Col), Color);
+                AddCoordDifColor(coords, board, new(Row - 1, Col), Color);
 
             return coords;
         }
@@ -175,13 +175,13 @@ namespace cchess_con
             int Row = Seat.Row,
                 Col = Seat.Col;
             if(Col != 4)
-                AddColorCoord(coords, board, new(Seat.IsBottom ? 1 : 8, 4), Color);
+                AddCoordDifColor(coords, board, new(Seat.IsBottom ? 1 : 8, 4), Color);
             else
             {
-                AddColorCoord(coords, board, new(Row - 1, Col - 1), Color);
-                AddColorCoord(coords, board, new(Row - 1, Col + 1), Color);
-                AddColorCoord(coords, board, new(Row + 1, Col - 1), Color);
-                AddColorCoord(coords, board, new(Row + 1, Col + 1), Color);
+                AddCoordDifColor(coords, board, new(Row - 1, Col - 1), Color);
+                AddCoordDifColor(coords, board, new(Row - 1, Col + 1), Color);
+                AddCoordDifColor(coords, board, new(Row + 1, Col - 1), Color);
+                AddCoordDifColor(coords, board, new(Row + 1, Col + 1), Color);
             }
 
             return coords;
@@ -232,7 +232,7 @@ namespace cchess_con
             void AddCoord(int row, int col)
             {
                 if(board[(row + Row) / 2, (col + Col) / 2].IsNull)
-                    AddColorCoord(coords, board, new(row, col), Color);
+                    AddCoordDifColor(coords, board, new(row, col), Color);
             }
 
             if(Row < maxRow)
@@ -298,7 +298,7 @@ namespace cchess_con
             {
                 var coord = allCoordLegs[i, 0];
                 if(Seat.IsValid(coord) && board[allCoordLegs[i, 1]].IsNull)
-                    AddColorCoord(coords, board, coord, Color);
+                    AddCoordDifColor(coords, board, coord, Color);
             }
 
             return coords;
@@ -336,7 +336,7 @@ namespace cchess_con
                 Col = Seat.Col;
             bool AddCoord(int row, int col)
             {
-                AddColorCoord(coords, board, new(row, col), Color);
+                AddCoordDifColor(coords, board, new(row, col), Color);
                 return board[row, col].IsNull;
             }
 
@@ -390,19 +390,19 @@ namespace cchess_con
             int Row = Seat.Row,
                 Col = Seat.Col;
             bool skiped = false;
-            bool AddCoordToBreak(int row,int col)
+            bool AddCoordToBreak(int row, int col)
             {
                 bool isNull = board[row, col].IsNull;
                 if(!skiped)
                 {
                     if(isNull)
-                        AddColorCoord(coords, board, new(row, col), Color);
+                        AddCoordDifColor(coords, board, new(row, col), Color);
                     else
                         skiped = true;
                 }
                 else if(!isNull)
                 {
-                    AddColorCoord(coords, board, new(row, col), Color);
+                    AddCoordDifColor(coords, board, new(row, col), Color);
                     return true;
                 }
 
@@ -478,15 +478,15 @@ namespace cchess_con
             if(bottomSide != isBottom)
             {
                 if(Col > 0)
-                    AddColorCoord(coords, board, new(Row, Col - 1), Color);
+                    AddCoordDifColor(coords, board, new(Row, Col - 1), Color);
                 if(Col < Seat.ColNum - 1)
-                    AddColorCoord(coords, board, new(Row, Col + 1), Color);
+                    AddCoordDifColor(coords, board, new(Row, Col + 1), Color);
             }
 
             if(bottomSide && Row < Seat.RowNum - 1)
-                AddColorCoord(coords, board, new(Row + 1, Col), Color);
+                AddCoordDifColor(coords, board, new(Row + 1, Col), Color);
             else if(!bottomSide && Row > 0)
-                AddColorCoord(coords, board, new(Row - 1, Col), Color);
+                AddCoordDifColor(coords, board, new(Row - 1, Col), Color);
 
             return coords;
         }
@@ -511,7 +511,7 @@ namespace cchess_con
             get { return '　'; }
         }
 
-        new static public Seat Seat { get { return Seat.NullSeat; } }
+        new public static Seat Seat { get { return Seat.NullSeat; } }
 
         override public List<Coord> MoveCoord(Board board)
         {

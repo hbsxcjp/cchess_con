@@ -15,7 +15,7 @@ namespace cchess_con
         FALSE
     }
 
-    internal class Move: IEnumerable
+    internal class Move
     {
         public Move(bool visible = true)
         {
@@ -23,7 +23,7 @@ namespace cchess_con
             ToPiece = Piece.NullPiece;
 
             Visible = visible;
-            _AfterMoves = null;
+            _afterMoves = null;
         }
         public Move(CoordPair coordPair, string? remark = null, bool visible = true) : this(visible)
         {
@@ -31,15 +31,30 @@ namespace cchess_con
             Remark = remark;
         }
 
-        static public Move CreateRootMove() { return new(); }
+        public static Move CreateRootMove() { return new(); }
 
+        public int Id { get; set; }
         public Move? Before { get; set; }
         public CoordPair CoordPair { get; set; }
         public string? Remark { get; set; }
         public bool Visible { get; set; }
-        public int AfterNum { get { return _AfterMoves?.Count ?? 0; } }
-
+        public int BeforeNum
+        {
+            get
+            {
+                int count = 0;
+                Move move = this;
+                while(move.Before != null)
+                {
+                    count++;
+                    move = move.Before;
+                }
+                return count;
+            }
+        }
+        public int AfterNum { get { return _afterMoves?.Count ?? 0; } }
         public Piece ToPiece { get; set; }
+
         public void Done(Board board)
         {
             var toSeat = board[CoordPair.ToCoord];
@@ -49,12 +64,12 @@ namespace cchess_con
         public void Undo(Board board)
             => board[CoordPair.ToCoord].MoveTo(board[CoordPair.FromCoord], ToPiece);
 
-        public bool HasAfter { get { return _AfterMoves != null; } }
+        public bool HasAfter { get { return _afterMoves != null; } }
 
         public Move AddAfterMove(CoordPair coordPair, string? remark = null, bool visible = true)
         {
             Move move = new(coordPair, remark, visible) { Before = this };
-            (_AfterMoves ??= new()).Add(move);
+            (_afterMoves ??= new()).Add(move);
             return move;
         }
 
@@ -71,14 +86,13 @@ namespace cchess_con
 
             return moves;
         }
-
         // 后置着法列表
         public List<Move>? AfterMoves(VisibleType vtype = VisibleType.ALL)
         {
-            if(_AfterMoves == null || vtype == VisibleType.ALL)
-                return _AfterMoves;
+            if(_afterMoves == null || vtype == VisibleType.ALL)
+                return _afterMoves;
 
-            List<Move> moves = new(_AfterMoves);
+            List<Move> moves = new(_afterMoves);
             if(vtype == VisibleType.TRUE)
                 moves.RemoveAll(move => !move.Visible);
             else
@@ -90,67 +104,12 @@ namespace cchess_con
 
         public void ClearAfterMovesError(ManualMove manualMove)
         {
-            if(_AfterMoves != null)
-                _AfterMoves.RemoveAll(move => !manualMove.CurMoveAccept(move.CoordPair));
+            if(_afterMoves != null)
+                _afterMoves.RemoveAll(move => !manualMove.CurMoveAccept(move.CoordPair));
         }
 
-        new public string ToString() => CoordPair.ToString() + Remark + '\n';
+        new public string ToString() => String.Format($"{new string('\t', BeforeNum)}{Before?.Id}.{CoordPair.ToString()}_{Id} {Remark}\n");
 
-        IEnumerator IEnumerable.GetEnumerator() => (IEnumerator)GetEnumerator();
-
-        public MoveEnum GetEnumerator() => new(this);
-
-        private List<Move>? _AfterMoves;
+        private List<Move>? _afterMoves;
     }
-
-    internal class MoveEnum: IEnumerator
-    {
-        public MoveEnum(Move topMove)
-        {
-            TopMove = topMove;
-            _current = topMove;
-            _queueMoves = new();
-
-            Reset();
-        }
-
-        public void Reset()
-        {
-            _current = TopMove;
-            _queueMoves.Clear();
-            EnqueueAfterMoves(TopMove);
-        }
-
-        public bool MoveNext()
-        {
-            if(_queueMoves.Count > 0)
-            {
-                _current = _queueMoves.Dequeue();
-                EnqueueAfterMoves(_current);
-                return true;
-            }
-
-            return false;
-        }
-
-        object IEnumerator.Current { get { return Current; } }
-
-        public Move TopMove { get; }
-        public Move Current { get { return _current; } }
-
-        private void EnqueueAfterMoves(Move beforeMove)
-        {
-            var afterMoves = beforeMove.AfterMoves();
-            if(afterMoves == null)
-                return;
-
-            foreach(var move in afterMoves)
-                _queueMoves.Enqueue(move);
-        }
-
-        private Move _current;
-        private readonly Queue<Move> _queueMoves;
-    }
-
-
 }

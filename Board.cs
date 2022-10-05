@@ -55,10 +55,6 @@ namespace cchess_con
             }
         }
 
-        public bool IsColor(Coord coord, PieceColor color)
-        {
-            return this[coord].Piece.Color == color;
-        }
         public bool IsKilled(PieceColor color)
         {
             var otherColor = color == PieceColor.RED ? PieceColor.BLACK : PieceColor.RED;
@@ -102,43 +98,43 @@ namespace cchess_con
 
             return true;
         }
-        public Dictionary<Coord, List<Coord>> CanMoveCoord(PieceColor color)
+        public Dictionary<Coord, List<Coord>> CanMoveCoord(PieceColor color, bool filterZero = false)
         {
             Dictionary<Coord, List<Coord>> fromCoordToCoords = new();
             foreach(var piece in LivePieces(color))
             {
                 var fromCoord = piece.Seat.Coord;
-                //var coords = CanMoveCoord(fromCoord);
-                //if(coords.Count > 0)
-                //    fromCoordToCoords[fromCoord] = coords;
-                fromCoordToCoords[fromCoord] = CanMoveCoord(fromCoord);
+                var coords = CanMoveCoord(fromCoord);
+                if(coords.Count > 0 || !filterZero)
+                    fromCoordToCoords[fromCoord] = coords;
             }
 
             return fromCoordToCoords;
         }
+
         // 可移动位置, 排除将帅对面、被将军的位置
         public List<Coord> CanMoveCoord(Coord fromCoord)
         {
-            List<Coord> coords = new();
             var fromSeat = this[fromCoord];
             if(fromSeat.IsNull)
-                return coords;
+                return new();
 
             var color = fromSeat.Piece.Color;
-            foreach(var toCoord in fromSeat.Piece.MoveCoord(this))
+            List<Coord> coords = fromSeat.Piece.MoveCoord(this);
+            coords.RemoveAll(toCoord =>
             {
                 Seat toSeat = this[toCoord];
                 Piece toPiece = toSeat.Piece;
-                // 查询能走的位置时，如是对方将帅的位置则可走，不用判断是否被将军（因为判断是否被将军，会直接走棋吃子）
+                // 如是对方将帅的位置则直接可走，不用判断是否被将军（因为判断是否被将军，会直接走棋吃子）
                 if(toPiece.Kind == PieceKind.KING)
-                    continue;
+                    return false;
 
                 fromSeat.MoveTo(toSeat, Piece.NullPiece);
-                if(!IsKilled(color))
-                    coords.Add(toCoord);
+                bool killed = IsKilled(color);
                 toSeat.MoveTo(fromSeat, toPiece);
-            }
-
+                return killed;
+            });
+            
             return coords;
         }
         public void Reset()
@@ -155,7 +151,7 @@ namespace cchess_con
 
             return GetFEN(pieceChars);
         }
-        static public string GetFEN(string pieceChars)
+        public static string GetFEN(string pieceChars)
         {
             string fen = "";
             if(pieceChars.Length != Seat.RowNum * Seat.ColNum)
@@ -618,15 +614,14 @@ namespace cchess_con
                 this[coord] = new(coord);
         }
 
-        static private int SymmetryRow(int row) => Seat.RowNum - 1 - row;
+        private static int SymmetryRow(int row) => Seat.RowNum - 1 - row;
+        private static int SymmetryCol(int col) => Seat.ColNum - 1 - col;
 
-        static private int SymmetryCol(int col) => Seat.ColNum - 1 - col;
-
-        static private PieceKind GetKind(char name) => (PieceKind)("帅仕相马车炮兵将士象马车炮卒".IndexOf(name) % KindNum);
-        static private bool IsLinePiece(PieceKind kind) => (kind == PieceKind.KING || kind == PieceKind.ROOK || kind == PieceKind.CANNON || kind == PieceKind.PAWN);
-        static private bool IsAdvisorBishop(PieceKind kind) => (kind == PieceKind.ADVISOR || kind == PieceKind.BISHOP);
-        static private string NumChars(PieceColor color) => color == PieceColor.RED ? RedNumChars : BlackNumChars;
-        static private string PreChars(int count) => (count == 2 ? "前后" : (count == 3 ? "前中后" : "一二三四五"));
+        private static PieceKind GetKind(char name) => (PieceKind)("帅仕相马车炮兵将士象马车炮卒".IndexOf(name) % KindNum);
+        private static bool IsLinePiece(PieceKind kind) => (kind == PieceKind.KING || kind == PieceKind.ROOK || kind == PieceKind.CANNON || kind == PieceKind.PAWN);
+        private static bool IsAdvisorBishop(PieceKind kind) => (kind == PieceKind.ADVISOR || kind == PieceKind.BISHOP);
+        private static string NumChars(PieceColor color) => color == PieceColor.RED ? RedNumChars : BlackNumChars;
+        private static string PreChars(int count) => (count == 2 ? "前后" : (count == 3 ? "前中后" : "一二三四五"));
 
         private readonly Piece[][][] _pieces;
         private readonly Seat[,] _seats;

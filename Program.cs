@@ -57,31 +57,31 @@ static void TestBoard()
     }
 }
 
-static void TestManual()
-{
-    string path = output + @"TestManual.txt";
-    string[] fileNames = {
+List<string> fileNames = new(){
         "01",
         "4四量拨千斤",
         "第09局",
         "布局陷阱--飞相局对金钩炮",
         "- 北京张强 (和) 上海胡荣华 (1993.4.27于南京)",
 
-        "中炮对屏风马",
-        "中炮【马8进7】",
-        "黑用开局库",
-        "仙人指路全集（史上最全最新版）",
-        "飞相局【卒7进1】",
-        "中炮【马2进3】"
+        //"中炮对屏风马",
+        //"中炮【马8进7】",
+        //"黑用开局库",
+        //"仙人指路全集（史上最全最新版）",
+        //"飞相局【卒7进1】",
+        //"中炮【马2进3】"
     };
-    string[] extName = { ".xqf", ".cm" };
+string[] extName = { ".xqf", ".cm" };
 
+void TestManual()
+{
+    string path = output + @"TestManual.txt";
+    
     Stopwatch stopWatch = new();
     stopWatch.Restart();
     //Thread.Sleep(10000);
 
-    //var action = FileAction.XQF_CM;
-    var action = FileAction.CM_CM;
+    var action = 1 == 0 ? FileAction.XQF_CM : FileAction.CM_CM;
     using StreamWriter sw = File.CreateText(path);
     foreach(string fileName in fileNames)
     {
@@ -94,8 +94,32 @@ static void TestManual()
 
         sw.Write(fromFileName[(fromFileName.LastIndexOf('\\') + 1)..] + " => "
             + toFileName[(toFileName.LastIndexOf('\\') + 1)..] + "\n"
-            + manual.ToString()); // true
+            + manual.ToString()); // true, true
     }
+
+    stopWatch.Stop();
+    // Get the elapsed time as a TimeSpan value.
+    TimeSpan ts = stopWatch.Elapsed;
+    // Format and display the TimeSpan value.
+    string elapsedTime = String.Format("{0:00}:{1:00}:{2:00}.{3:00}\n",
+        ts.Hours, ts.Minutes, ts.Seconds,
+        ts.Milliseconds / 10);
+    sw.WriteLine("RunTime " + elapsedTime);
+}
+
+void TestAspect()
+{
+    string path = output + @"TestAspect.txt";
+
+    Stopwatch stopWatch = new();
+    stopWatch.Restart();
+    //Thread.Sleep(10000);
+
+    using StreamWriter sw = File.CreateText(path);
+    Aspects aspects = new();
+    foreach(string fileName in fileNames)
+        aspects.Add(output + fileName + extName[1]);
+    sw.Write(aspects.ToString());
 
     stopWatch.Stop();
     // Get the elapsed time as a TimeSpan value.
@@ -109,3 +133,4 @@ static void TestManual()
 
 TestBoard();
 TestManual();
+TestAspect();

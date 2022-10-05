@@ -78,13 +78,13 @@ namespace cchess_con
         public bool IsNull { get { return Piece == Piece.NullPiece; } }
         public void SetNull() { Piece = Piece.NullPiece; }
         public bool IsBottom { get { return (Row << 1) < RowNum; } }
-        static public bool IsValid(Coord coord)
+        public static bool IsValid(Coord coord)
         {
             int row = coord.row, col = coord.col;
             return row >= 0 && row < RowNum && col >= 0 && col < ColNum;
         }
 
-        static public List<Coord> AllCoord()
+        public static List<Coord> AllCoord()
         {
             List<Coord> coords = new();
             for(int row = 0;row < Seat.RowNum;row++)
@@ -94,12 +94,11 @@ namespace cchess_con
             return coords;
         }
 
-        static public readonly Seat NullSeat = new(new(-1, -1));
+        public static readonly Seat NullSeat = new(new(-1, -1));
 
         public const int RowNum = 10;
         public const int ColNum = 9;
 
-        //private Coord _coord;
         private Piece _piece;
     }
 
