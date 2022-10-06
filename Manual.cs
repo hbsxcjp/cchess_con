@@ -43,7 +43,7 @@ namespace cchess_con
         }
         public void Write(string fileName) => WriteCM(fileName);
 
-        public List<Aspect> GetAspects() => _manualMove.GetAspects();
+        public List<(string fen, ushort data)> GetAspects() => _manualMove.GetAspects();
 
         public string InfoValue(string key) => _info[key];
         public void SetInfoValue(string key, string value) => _info[key] = value.Trim();
@@ -416,10 +416,16 @@ namespace cchess_con
             if(CurMove == move || move == null)
                 return false;
 
-            BackStart();
-            foreach(var mv in move.BeforeMoves())
-                GoMove(mv);
+            var beforeMoves = move.BeforeMoves();
+            int index = -1;
+            while(Back())
+                if((index = beforeMoves.IndexOf(CurMove)) > -1)
+                    break;
 
+            for(int i = index + 1;i < beforeMoves.Count;++i)
+                beforeMoves[i].Done(_board);
+
+            CurMove = move;
             return true;
         }
 
@@ -476,17 +482,13 @@ namespace cchess_con
             }
         }
 
-        public List<Aspect> GetAspects()
+        public List<(string fen, ushort data)> GetAspects()
         {
-            List<Aspect> aspects = new();
-
+            List<(string fen, ushort data)> aspects = new();
             var oldEnumMoveDoned = EnumMoveDoned;
             EnumMoveDoned = true;
             foreach(var move in this)
-            {
-                var coordPair = move.CoordPair;
-                aspects.Add(new Aspect(_board.GetFEN(), _board[coordPair.FromCoord].Piece.Color, coordPair.Data));
-            }
+                aspects.Add((_board.GetFEN(), move.CoordPair.Data));
             EnumMoveDoned = oldEnumMoveDoned;
 
             return aspects;
@@ -557,6 +559,7 @@ namespace cchess_con
         public ManualMoveEnum(ManualMove manualMove)
         {
             _manualMove = manualMove;
+            _beforeMoveQueue = new();
             _moveQueue = new();
             _curMove = manualMove.CurMove; // 消除未赋值警示
 
@@ -566,6 +569,7 @@ namespace cchess_con
         public void Reset()
         {
             _manualMove.BackStart();
+            _beforeMoveQueue.Clear();
             _moveQueue.Clear();
             _id = 0;
             SetCurrentEnqueueAfterMoves(_manualMove.CurMove);
@@ -599,13 +603,17 @@ namespace cchess_con
 
             var afterMoves = _curMove.AfterMoves();
             if(afterMoves != null)
+            {
+                _beforeMoveQueue.Enqueue(_curMove);
                 foreach(var move in afterMoves)
                     _moveQueue.Enqueue(move);
+            }
         }
 
         private int _id;
         private Move _curMove;
         private readonly ManualMove _manualMove;
+        private readonly Queue<Move> _beforeMoveQueue;
         private readonly Queue<Move> _moveQueue;
     }
 }

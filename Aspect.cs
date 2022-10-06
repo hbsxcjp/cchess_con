@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Data.SqlTypes;
 using System.Drawing;
 using System.Linq;
 using System.Text;
@@ -7,81 +9,113 @@ using System.Threading.Tasks;
 
 namespace cchess_con
 {
-    internal struct Aspect
-    {
-        public Aspect(string fen, PieceColor color, int data)
-        {
-            Fen = fen;
-            Color = color;
-            Data = data;
-        }
-
-        new public string ToString() => string.Format($"{Fen}_{Color}_{Data}");
-
-        public readonly string Fen;
-        public readonly PieceColor Color;
-        public readonly int Data;
-    }
-
     internal class Aspects
     {
         public Aspects() { _aspectDict = new(); }
+        public Aspects(string fileName) : this()
+        {
+            if(!File.Exists(fileName))
+                return;
+
+            using var stream = File.Open(fileName, FileMode.Open);
+            using var reader = new BinaryReader(stream, Encoding.UTF8, false);
+            int fenCount = reader.ReadInt32();
+            for(int i = 0;i < fenCount;i++)
+            {
+                string fen = reader.ReadString();
+                int dataCount = reader.ReadInt32();
+                ConcurrentDictionary<ushort, List<int>> aspectData = new();
+                for(int j = 0;j < dataCount;j++)
+                {
+                    ushort data = reader.ReadUInt16();
+                    int valueCount = reader.ReadInt32();
+                    List<int> valueList = new();
+                    for(int k = 0;k < valueCount;k++)
+                        valueList.Add(reader.ReadInt32());
+
+                    aspectData.TryAdd(data, valueList);
+                }
+                _aspectDict.TryAdd(fen, aspectData);
+            }
+        }
+        public void Write(string fileName)
+        {
+            using var stream = File.Open(fileName, FileMode.Create);
+            using var writer = new BinaryWriter(stream, Encoding.UTF8, false);
+            writer.Write(_aspectDict.Count);
+            foreach(var fenData in _aspectDict)
+            {
+                writer.Write(fenData.Key);
+                writer.Write(fenData.Value.Count);
+                foreach(var aspectData in fenData.Value)
+                {
+                    writer.Write(aspectData.Key);
+                    writer.Write(aspectData.Value.Count);
+                    foreach(var x in aspectData.Value)
+                        writer.Write(x);
+                }
+            }
+        }
 
         public void Add(string fileName)
         {
             Manual manual = new(fileName);
             foreach(var aspect in manual.GetAspects())
                 Join(aspect);
-        }
 
+            // 以下同步方式与非同步方式的耗时基本相同，同步字典并行运行时被锁定？
+            //var aspectList = (new Manual(fileName)).GetAspects();
+            //Parallel.ForEach<(string fen, int data), bool>(
+            //    aspectList,
+            //    () => true,
+            //    (aspect, loop, x) => Join(aspect),
+            //    (x) => x = true);
+        }
 
         new public string ToString()
         {
-            string result = "";
-            foreach(var fenData in _aspectDict)
+            static string FenDataToString(KeyValuePair<string, ConcurrentDictionary<ushort, List<int>>> fenData,
+                  ParallelLoopState loop, string subString)
             {
-                result += fenData.Key + ' ';
-                for(int i = 0;i < fenData.Value.Rank;i++)
+                subString += fenData.Key + " [";
+                foreach(var aspectData in fenData.Value)
                 {
-                    result += '[';
-                    foreach(var dataValue in fenData.Value[i])
-                    {
-                        result += String.Format($"{dataValue.Key:x}:");
-                        foreach(var x in dataValue.Value)
-                            result += x.ToString();
+                    subString += String.Format($"{aspectData.Key:X4}(");
+                    foreach(var x in aspectData.Value)
+                        subString += x.ToString() + ' ';
 
-                        result += ' ';
-                        //result[result.Length - 1]
-                    }
-                    result += ']';
+                    subString = subString.TrimEnd() + ") ";
                 }
-                result += '\n';
+
+                return subString.TrimEnd() + "]\n";
             }
 
-            return result;
+            // 非常有效地提升了速度! 
+            BlockingCollection<string> subStringCollection = new();
+            Parallel.ForEach(
+                _aspectDict,
+                () => "",
+                FenDataToString,
+                (finalSubString) => subStringCollection.Add(finalSubString));
+
+            return string.Concat(subStringCollection);
         }
 
-        private void Join(Aspect aspect)
+        private bool Join((string fen, ushort data) aspect)
         {
-            string fen = aspect.Fen;
-            int colorIndex = (int)aspect.Color;
-            int data = aspect.Data;
-            if(_aspectDict.ContainsKey(fen))
+            ushort data = aspect.data;
+            ConcurrentDictionary<ushort, List<int>> aspectData = _aspectDict.GetOrAdd(
+                aspect.fen, new ConcurrentDictionary<ushort, List<int>>());
+            if(aspectData.ContainsKey(data))
             {
-                Dictionary<int, List<int>>[] aspectData = _aspectDict[fen];
-                if(aspectData[colorIndex].ContainsKey(data))
-                    aspectData[colorIndex][data][0]++;
-                else
-                    aspectData[colorIndex].Add(data, new() { 1 });
+                aspectData[data][0]++; // 第一项计数，列表可添加功能
             }
             else
-            {
-                var aspectData = new Dictionary<int, List<int>>[2] { new(), new() };
-                aspectData[colorIndex].Add(data, new() { 1 });
-                _aspectDict.Add(fen, aspectData);
-            }
+                aspectData.TryAdd(data, new List<int>() { 1 });
+
+            return true;
         }
 
-        private readonly Dictionary<string, Dictionary<int, List<int>>[]> _aspectDict;
+        private readonly ConcurrentDictionary<string, ConcurrentDictionary<ushort, List<int>>> _aspectDict;
     }
 }
