@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Data.SqlTypes;
 using System.Drawing;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -24,7 +25,7 @@ namespace cchess_con
             {
                 string fen = reader.ReadString();
                 int dataCount = reader.ReadInt32();
-                ConcurrentDictionary<ushort, List<int>> aspectData = new();
+                Dictionary<ushort, List<int>> aspectData = new();
                 for(int j = 0;j < dataCount;j++)
                 {
                     ushort data = reader.ReadUInt16();
@@ -72,9 +73,21 @@ namespace cchess_con
             //    (x) => x = true);
         }
 
+        public List<(CoordPair coordPair, List<int> valueList)>? GetAspectData(string fen)
+        {
+            var (finded, findCt, findFen) = FindCtFens(fen);
+            if(!finded)
+                return null;
+
+            List<(CoordPair coordPair, List<int> valueList)> coordPairData = new();
+            foreach(var dataValue in _aspectDict[findFen])
+                coordPairData.Add((CoordPair.GetCoordPair(dataValue.Key, findCt), dataValue.Value));
+
+            return coordPairData;
+        }
         new public string ToString()
         {
-            static string FenDataToString(KeyValuePair<string, ConcurrentDictionary<ushort, List<int>>> fenData,
+            static string FenDataToString(KeyValuePair<string, Dictionary<ushort, List<int>>> fenData,
                   ParallelLoopState loop, string subString)
             {
                 subString += fenData.Key + " [";
@@ -103,9 +116,20 @@ namespace cchess_con
 
         private bool Join((string fen, ushort data) aspect)
         {
-            ushort data = aspect.data;
-            ConcurrentDictionary<ushort, List<int>> aspectData = _aspectDict.GetOrAdd(
-                aspect.fen, new ConcurrentDictionary<ushort, List<int>>());
+            var (fen, data) = aspect;
+            Dictionary<ushort, List<int>> aspectData;
+            var (finded, findCt, findFen) = FindCtFens(fen);
+            if(finded)
+                aspectData = _aspectDict[findFen];
+            else
+            {
+                aspectData = new();
+                _aspectDict.Add(fen, aspectData);
+            }
+
+            if(findCt != ChangeType.NoChange)
+                data = CoordPair.GetCoordPair(data, findCt).Data;
+
             if(aspectData.ContainsKey(data))
             {
                 aspectData[data][0]++; // 第一项计数，列表可添加功能
@@ -116,6 +140,31 @@ namespace cchess_con
             return true;
         }
 
-        private readonly ConcurrentDictionary<string, ConcurrentDictionary<ushort, List<int>>> _aspectDict;
+        private (bool finded, ChangeType findCt, string findFen) FindCtFens(string fen)
+        {
+            bool finded = false;
+            ChangeType findCt = ChangeType.NoChange;
+            string findFen = "";
+            foreach(var ct in new ChangeType[] {
+                ChangeType.NoChange,
+                ChangeType.SYMMETRY_V,
+                ChangeType.ROTATE,
+                ChangeType.SYMMETRY_H, })
+            {
+                var changeFen = Board.GetFEN(fen, ct);
+                if(_aspectDict.ContainsKey(changeFen))
+                {
+                    finded = true;
+                    findCt = ct;
+                    findFen = changeFen;
+                    if(ct != ChangeType.NoChange) Console.WriteLine($"\t\tfen: {fen}\n_aspectDict.ContainsKey: {changeFen}");
+                    break;
+                }
+            }
+
+            return (finded, findCt, findFen);
+        }
+
+        private readonly Dictionary<string, Dictionary<ushort, List<int>>> _aspectDict;
     }
 }

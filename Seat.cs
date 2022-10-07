@@ -7,6 +7,15 @@ using System.Threading.Tasks;
 
 namespace cchess_con
 {
+    enum ChangeType
+    {
+        NoChange,
+        SYMMETRY_V,
+        ROTATE,
+        SYMMETRY_H,
+        EXCHANGE,
+    }
+
     internal struct Coord
     {
         public Coord(int r, int c)
@@ -14,11 +23,23 @@ namespace cchess_con
             row = r;
             col = c;
         }
-        public Coord(int data) : this(data >> 4, data & 0X0F)
+        public Coord(ushort data) : this(data >> 4, data & 0X0F)
         {
         }
 
-        public int Data { get { return row << 4 | col; } }
+        public ushort Data { get { return (ushort)(row << 4 | col); } }
+
+        public Coord GetCoord(ChangeType ct)
+        {
+            if(ct == ChangeType.SYMMETRY_H)
+                return new(row, Seat.SymmetryCol(col));
+            else if(ct == ChangeType.SYMMETRY_V)
+                return new(Seat.SymmetryRow(row), col);
+            else if(ct == ChangeType.ROTATE)
+                return new(Seat.SymmetryRow(row), Seat.SymmetryCol(col));
+
+            return this;
+        }
 
         new public string ToString() => string.Format($"({row},{col})");
 
@@ -33,12 +54,19 @@ namespace cchess_con
             FromCoord = fromCoord;
             ToCoord = toCoord;
         }
-        public CoordPair(int data) : this(new(data >> 8), new(data & 0XFF))
+        public CoordPair(ushort data) : this(new((ushort)(data >> 8)), new((ushort)(data & 0XFF)))
         {
         }
 
         public ushort Data { get { return (ushort)(FromCoord.Data << 8 | ToCoord.Data); } }
+        public static CoordPair GetCoordPair(ushort data, ChangeType ct)
+        {
+            CoordPair coordPair = new(data);
+            if(ct == ChangeType.NoChange)
+                return coordPair;
 
+            return new CoordPair(coordPair.FromCoord.GetCoord(ct), coordPair.ToCoord.GetCoord(ct));
+        }
         new public string ToString() => string.Format($"[{FromCoord.ToString()},{ToCoord.ToString()}]");
 
         public Coord FromCoord;
@@ -93,6 +121,9 @@ namespace cchess_con
 
             return coords;
         }
+
+        public static int SymmetryRow(int row) => RowNum - 1 - row;
+        public static int SymmetryCol(int col) => ColNum - 1 - col;
 
         public static readonly Seat NullSeat = new(new(-1, -1));
 

@@ -10,15 +10,6 @@ using System.Threading.Tasks;
 
 namespace cchess_con
 {
-    enum ChangeType
-    {
-        EXCHANGE,
-        ROTATE,
-        SYMMETRY_H,
-        SYMMETRY_V,
-        NoChange
-    }
-
     internal class Board
     {
         public Board()
@@ -134,7 +125,7 @@ namespace cchess_con
                 toSeat.MoveTo(fromSeat, toPiece);
                 return killed;
             });
-            
+
             return coords;
         }
         public void Reset()
@@ -184,14 +175,46 @@ namespace cchess_con
 
             return fen;
         }
+        public static string GetFEN(string fen, ChangeType ct)
+        {
+            string[] fenArray = fen.Split(FENSplitChar);
+            if(fenArray.Length != Seat.RowNum || ct == ChangeType.NoChange)
+                return fen;
+
+            if(ct == ChangeType.EXCHANGE)
+            {
+                string resultFen = "";
+                foreach(var ch in fen)
+                    resultFen += (char.IsLetter(ch) ? (char.IsLower(ch) ? char.ToUpper(ch) : char.ToLower(ch)) : ch);
+                return resultFen;
+            }
+
+            IEnumerable<string> result;
+            IEnumerable<string> ReverseRow(IEnumerable<string> fenArray) { return fenArray.Reverse(); }
+            IEnumerable<string> ReverseCol(IEnumerable<string> fenArray)
+            {
+                List<string> lines = new();
+                foreach(var line in fenArray)
+                    lines.Add(string.Concat(line.Reverse()));
+                return lines;
+            }
+
+            if(ct == ChangeType.SYMMETRY_H)
+                result = ReverseCol(fenArray);
+            else if(ct == ChangeType.SYMMETRY_V)
+                result = ReverseRow(fenArray);
+            else // if(ct == ChangeType.ROTATE)
+                result = ReverseCol(ReverseRow(fenArray));
+
+            return string.Join(FENSplitChar, result);
+        }
         public bool SetFEN(string fen)
         {
-            Piece getPiece(char ch)
+            Piece GetNotAtSeatPiece(char ch)
             {
-                foreach(var kindPieces in _pieces[(int)(ch < 'a' ? PieceColor.RED : PieceColor.BLACK)])
-                    foreach(var piece in kindPieces)
-                        if(piece.Char == ch && !piece.AtSeat)
-                            return piece;
+                foreach(var piece in _pieces[GetColorIndex(ch)][GetKindIndex(ch)])
+                    if(!piece.AtSeat)
+                        return piece;
 
                 return Piece.NullPiece;
             }
@@ -205,78 +228,16 @@ namespace cchess_con
             {
                 int col = 0;
                 foreach(char ch in fenArray[row])
-                    if(ch.CompareTo('A') < 0)
-                        col += ch - '0';
+                    if(char.IsDigit(ch))
+                        col += Convert.ToInt32(ch) - Convert.ToInt32('0');
                     else
-                        this[SymmetryRow(row), col++].Piece = getPiece(ch);
+                        this[Seat.SymmetryRow(row), col++].Piece = GetNotAtSeatPiece(ch);
             }
 
             SetBottomColor();
             return true;
         }
-
-        public bool ChangeLayout(ChangeType ct)
-        {
-            Piece GetOtherPiece(Piece piece)
-            {
-                var kindPieces = _pieces[(int)piece.Color][(int)piece.Kind];
-                var otherKindPieces = _pieces[((int)piece.Color + 1) % 2][(int)piece.Kind];
-                int index = 0;
-                foreach(var pie in kindPieces)
-                    if(pie == piece)
-                        break;
-                    else
-                        index++;
-
-                return otherKindPieces[index];
-            }
-
-            Seat GetChangeSeat(Seat seat, ChangeType ct)
-            {
-                if(ct == ChangeType.SYMMETRY_H)
-                    return this[seat.Row, SymmetryCol(seat.Col)];
-                else if(ct == ChangeType.SYMMETRY_V)
-                    return this[SymmetryRow(seat.Row), seat.Col];
-                else if(ct == ChangeType.ROTATE)
-                    return this[SymmetryRow(seat.Row), SymmetryCol(seat.Col)];
-
-                return seat;
-            }
-
-            if(ct == ChangeType.EXCHANGE)
-            {
-                Dictionary<Seat, Piece> seatPieces = new();
-                foreach(var seat in _seats)
-                {
-                    if(!seat.IsNull)
-                        seatPieces.Add(seat, GetOtherPiece(seat.Piece));
-
-                    seat.SetNull();
-                }
-
-                foreach(var seatPiece in seatPieces)
-                    seatPiece.Key.Piece = seatPiece.Value;
-            }
-            else if(ct == ChangeType.SYMMETRY_H || ct == ChangeType.ROTATE)
-            {
-                int maxRow = ct == ChangeType.SYMMETRY_H ? Seat.RowNum : Seat.RowNum / 2,
-                    maxCol = ct == ChangeType.SYMMETRY_H ? Seat.ColNum / 2 : Seat.ColNum;
-                for(int row = 0;row < maxRow;++row)
-                    for(int col = 0;col < maxCol;++col)
-                    {
-                        Seat seat = this[row, col];
-                        Seat changedSeat = GetChangeSeat(seat, ct);
-                        Piece piece = seat.Piece;
-                        Piece changePiece = changedSeat.Piece;
-
-                        changedSeat.SetNull(); // 切断联系
-                        seat.Piece = changePiece;
-                        changedSeat.Piece = piece;
-                    }
-            }
-
-            return SetBottomColor();
-        }
+        public bool ChangeLayout(ChangeType ct) => SetFEN(GetFEN(GetFEN(), ct));
 
         public string GetZhStr(CoordPair coordPair)
         {
@@ -309,17 +270,17 @@ namespace cchess_con
             }
             else
             {  //将帅, 仕(士),相(象): 不用“前”和“后”区别，因为能退的一定在前，能进的一定在后
-                char colChar = NumChars(color)[isBottom ? SymmetryCol(fromCol) : fromCol];
+                char colChar = NumChars(color)[isBottom ? Seat.SymmetryCol(fromCol) : fromCol];
                 zhStr = string.Format($"{name}{colChar}");
             }
 
             char movChar = ("退平进")[isSameRow ? 1 : (isBottom == toRow > fromRow ? 2 : 0)];
             char toNumColChar = !isSameRow && IsLinePiece(kind)
                 ? NumChars(color)[Math.Abs(fromRow - toRow) - 1]
-                : NumChars(color)[isBottom ? SymmetryCol(toCol) : toCol];
+                : NumChars(color)[isBottom ? Seat.SymmetryCol(toCol) : toCol];
             zhStr += movChar + toNumColChar;
-            //if(GetCoordPair(zhStr) != coordPair)
-            //throw new Exception("GetCoordPair(zhStr) != coordPair ?");
+
+            if(GetCoordPair(zhStr).Equals(coordPair)) throw new Exception("GetCoordPair(zhStr) != coordPair ?");
 
             return zhStr;
         }
@@ -334,12 +295,12 @@ namespace cchess_con
             int index, movDir = ("退平进".IndexOf(zhStr[2]) - 1) * (isBottom ? 1 : -1);
 
             List<Piece> pieces;
-            PieceKind kind = GetKind(zhStr[0]);
+            PieceKind kind = GetKind_name(zhStr[0]);
             if(kind != PieceKind.NoKind)
             {   // 首字符为棋子名
                 int fromCol = NumChars(color).IndexOf(zhStr[1]);
                 if(isBottom)
-                    fromCol = SymmetryCol(fromCol);
+                    fromCol = Seat.SymmetryCol(fromCol);
 
                 pieces = LivePieces(color, kind, fromCol);
                 if(pieces.Count <= 1)
@@ -350,7 +311,7 @@ namespace cchess_con
             }
             else
             {
-                kind = GetKind(zhStr[1]);
+                kind = GetKind_name(zhStr[1]);
                 pieces = LivePieces(color, kind);
                 index = PreChars(pieces.Count).IndexOf(zhStr[0]);
                 if(isBottom)
@@ -363,7 +324,7 @@ namespace cchess_con
             coordPair.FromCoord = pieces[index].Seat.Coord;
             int toNum = NumChars(color).IndexOf(zhStr[3]) + 1,
                 toRow = coordPair.FromCoord.row,
-                toCol = isBottom ? SymmetryCol(toNum - 1) : toNum - 1;
+                toCol = isBottom ? Seat.SymmetryCol(toNum - 1) : toNum - 1;
             if(IsLinePiece(kind))
             {
                 if(movDir != 0)
@@ -376,7 +337,8 @@ namespace cchess_con
             {   // 斜线走子：仕、相、马
                 int colAway = Math.Abs(toCol - coordPair.FromCoord.col);
                 //  相距1或2列
-                int rowInc = IsAdvisorBishop(kind) ? colAway : (colAway == 1 ? 2 : 1);
+                int rowInc = (kind == PieceKind.ADVISOR || kind == PieceKind.BISHOP)
+                    ? colAway : (colAway == 1 ? 2 : 1);
                 toRow += movDir * rowInc;
             }
             coordPair.ToCoord = new(toRow, toCol);
@@ -507,7 +469,7 @@ namespace cchess_con
             foreach(var seat in _seats)
                 if(!seat.IsNull)
                 {
-                    int idx = SymmetryRow(seat.Row) * 2 * (Seat.ColNum * 2) + seat.Col * 2;
+                    int idx = Seat.SymmetryRow(seat.Row) * 2 * (Seat.ColNum * 2) + seat.Col * 2;
                     textBlankBoard[idx] = seat.Piece.PrintName();
                 }
 
@@ -614,16 +576,16 @@ namespace cchess_con
                 this[coord] = new(coord);
         }
 
-        private static int SymmetryRow(int row) => Seat.RowNum - 1 - row;
-        private static int SymmetryCol(int col) => Seat.ColNum - 1 - col;
-
-        private static PieceKind GetKind(char name) => (PieceKind)("帅仕相马车炮兵将士象马车炮卒".IndexOf(name) % KindNum);
+        private static int GetColorIndex(char ch) => char.IsUpper(ch) ? 0 : 1;
+        private static int GetKindIndex(char ch) => ("KABNRCPkabnrcp".IndexOf(ch)) % KindNum;
+        private static PieceKind GetKind_name(char name) => (PieceKind)("帅仕相马车炮兵将士象马车炮卒".IndexOf(name) % KindNum);
         private static bool IsLinePiece(PieceKind kind) => (kind == PieceKind.KING || kind == PieceKind.ROOK || kind == PieceKind.CANNON || kind == PieceKind.PAWN);
-        private static bool IsAdvisorBishop(PieceKind kind) => (kind == PieceKind.ADVISOR || kind == PieceKind.BISHOP);
         private static string NumChars(PieceColor color) => color == PieceColor.RED ? RedNumChars : BlackNumChars;
         private static string PreChars(int count) => (count == 2 ? "前后" : (count == 3 ? "前中后" : "一二三四五"));
 
+        // [Color][Kind][Index]
         private readonly Piece[][][] _pieces;
+        // [row, col]
         private readonly Seat[,] _seats;
 
         private const char FENSplitChar = '/';

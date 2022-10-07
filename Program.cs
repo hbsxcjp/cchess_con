@@ -24,12 +24,12 @@ List<string> fileNames = new(){
     };
 string[] extName = { ".xqf", ".cm" };
 
-static void TestBoard()
+void TestBoard()
 {
     string[] fens = {
         "rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR",
         "5a3/4ak2r/6R2/8p/9/9/9/B4N2B/4K4/3c5",
-        "5k3/9/9/9/9/9/4rp3/2R1C4/4K4/9"
+        "5k3/9/9/9/9/9/4rp3/2R1C4/4K4/9",
     };
 
     string path = output + @"TestBoard.txt";
@@ -54,27 +54,35 @@ static void TestBoard()
     //    }
     //}
 
+    Stopwatch stopWatch = new();
+    stopWatch.Restart();
+
     Board board = new();
     using StreamWriter sw = File.CreateText(path);
     sw.WriteLine(board.PiecesString());
     sw.WriteLine(board.PutCoordString());
+
     List<ChangeType> cts = new() {
-            ChangeType.NoChange,
-            ChangeType.EXCHANGE,
-            ChangeType.ROTATE,
-            ChangeType.SYMMETRY_H
-        };
+        ChangeType.NoChange,
+        ChangeType.SYMMETRY_V,
+        ChangeType.ROTATE,
+        ChangeType.SYMMETRY_H,
+        ChangeType.EXCHANGE,
+    };
     foreach(string fen in fens)
     {
         board.SetFEN(fen);
         foreach(var ct in cts)
         {
             board.ChangeLayout(ct);
-            sw.WriteLine(board.GetFEN());
+            sw.WriteLine(string.Format($"{ct}: {board.GetFEN()}"));
             sw.WriteLine(board.ToString());
             sw.WriteLine(board.CanMoveCoordString());
         }
     }
+
+    stopWatch.Stop();
+    sw.WriteLine(TimeString(stopWatch.Elapsed));
 }
 
 void TestManual()
@@ -120,7 +128,7 @@ void TestAspect()
     }
     //sw.Write(aspects.ToString());
 
-    string spFileName=output+ @"Aspects.sp";
+    string spFileName = output + @"Aspects.sp";
     aspects.Write(spFileName);
 
     Aspects aspects1 = new(spFileName);
