@@ -177,17 +177,20 @@ namespace cchess_con
         }
         public static string GetFEN(string fen, ChangeType ct)
         {
-            string[] fenArray = fen.Split(FENSplitChar);
-            if(fenArray.Length != Seat.RowNum || ct == ChangeType.NoChange)
+            if(ct == ChangeType.NoChange)
                 return fen;
 
             if(ct == ChangeType.EXCHANGE)
             {
                 string resultFen = "";
                 foreach(var ch in fen)
-                    resultFen += (char.IsLetter(ch) ? (char.IsLower(ch) ? char.ToUpper(ch) : char.ToLower(ch)) : ch);
+                    resultFen += char.IsLetter(ch) ? (char.IsLower(ch) ? char.ToUpper(ch) : char.ToLower(ch)) : ch;
                 return resultFen;
             }
+
+            string[] fenArray = fen.Split(FENSplitChar);
+            if(fenArray.Length != Seat.RowNum)
+                return fen;
 
             IEnumerable<string> result;
             IEnumerable<string> ReverseRow(IEnumerable<string> fenArray) { return fenArray.Reverse(); }

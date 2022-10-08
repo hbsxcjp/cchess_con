@@ -1,7 +1,8 @@
 //See https://aka.ms/new-console-template for more information
 using cchess_con;
+using System;
 using System.Diagnostics;
-
+using System.Text.RegularExpressions;
 
 string TimeString(TimeSpan ts) => "RunTime " + String.Format("{0:00}:{1:00}:{2:00}.{3:00}\n",
         ts.Hours, ts.Minutes, ts.Seconds, ts.Milliseconds / 10);
@@ -71,11 +72,13 @@ void TestBoard()
     };
     foreach(string fen in fens)
     {
+        string pieceChars = Regex.Replace(fen, @"(?<num>\d)", $"{new string("_")}"); // , ${num}
+
         board.SetFEN(fen);
         foreach(var ct in cts)
         {
             board.ChangeLayout(ct);
-            sw.WriteLine(string.Format($"{ct}: {board.GetFEN()}"));
+            sw.WriteLine(string.Format($"{ct}: \n{board.GetFEN()}"));
             sw.WriteLine(board.ToString());
             sw.WriteLine(board.CanMoveCoordString());
         }

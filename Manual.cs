@@ -487,8 +487,9 @@ namespace cchess_con
             List<(string fen, ushort data)> aspects = new();
             var oldEnumMoveDoned = EnumMoveDoned;
             EnumMoveDoned = true;
+            ChangeType ct = GetChangeType();
             foreach(var move in this)
-                aspects.Add((_board.GetFEN(), move.CoordPair.Data));
+                aspects.Add((Board.GetFEN(_board.GetFEN(), ct), move.CoordPair.Data));
             EnumMoveDoned = oldEnumMoveDoned;
 
             return aspects;
@@ -549,6 +550,7 @@ namespace cchess_con
         public bool EnumMoveDoned { get; set; }
 
         private void GoMove(Move move) => (CurMove = move).Done(_board);
+        private ChangeType GetChangeType() => _board.BottomColor == PieceColor.RED ? ChangeType.NoChange : ChangeType.EXCHANGE;
 
         private readonly Board _board;
         private readonly Move _rootMove;

@@ -714,5 +714,5 @@ EXCHANGE: 5K3/9/9/9/9/9/4RP3/2r1c4/4k4/9
 黑砲c(2,4) CanMoveCoord: 【0】
 总计：【29】
 
-RunTime 00:00:00.37
+    RunTime 00:00:00.31
 

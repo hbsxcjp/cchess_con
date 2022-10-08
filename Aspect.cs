@@ -147,8 +147,6 @@ namespace cchess_con
             string findFen = "";
             foreach(var ct in new ChangeType[] {
                 ChangeType.NoChange,
-                ChangeType.SYMMETRY_V,
-                ChangeType.ROTATE,
                 ChangeType.SYMMETRY_H, })
             {
                 var changeFen = Board.GetFEN(fen, ct);
