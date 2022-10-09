@@ -6,6 +6,7 @@ using System.Linq;
 using System.Reflection;
 using System.Reflection.Metadata.Ecma335;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace cchess_con
@@ -145,35 +146,40 @@ namespace cchess_con
         public static string GetFEN(string pieceChars)
         {
             string fen = "";
-            if(pieceChars.Length != Seat.RowNum * Seat.ColNum)
-                return fen;
+            //if(pieceChars.Length != Seat.RowNum * Seat.ColNum)
+            //return fen;
 
-            for(int row = 0;row < Seat.RowNum;row++)
-            {
-                string line = "";
-                int num = 0, colIndex = row * Seat.ColNum;
-                for(int col = 0;col < Seat.ColNum;col++)
-                {
-                    char ch = pieceChars[col + colIndex];
-                    if(ch == Piece.NullPiece.Char)
-                        num++;
-                    else
-                    {
-                        if(num != 0)
-                        {
-                            line += string.Format($"{num}");
-                            num = 0;
-                        }
-                        line += ch;
-                    }
-                }
-                if(num != 0)
-                    line += string.Format($"{num}");
+            for(int row = Seat.RowNum - 1;row >= 0;--row)
+                fen += pieceChars[(row * Seat.ColNum)..((row + 1) * Seat.ColNum)] + FENSplitChar;
 
-                fen = (row == 0 ? line : line + FENSplitChar) + fen;
-            }
+            return Regex.Replace(fen.Remove(fen.Length - 1), $"{Piece.NullPiece.Char}+",
+                (Match match) => match.Value.Length.ToString());
+            //for(int row = 0;row < Seat.RowNum;row++)
+            //{
+            //    string line = "";
+            //    int num = 0, colIndex = row * Seat.ColNum;
+            //    for(int col = 0;col < Seat.ColNum;col++)
+            //    {
+            //        char ch = pieceChars[col + colIndex];
+            //        if(ch == Piece.NullPiece.Char)
+            //            num++;
+            //        else
+            //        {
+            //            if(num != 0)
+            //            {
+            //                line += string.Format($"{num}");
+            //                num = 0;
+            //            }
+            //            line += ch;
+            //        }
+            //    }
+            //    if(num != 0)
+            //        line += string.Format($"{num}");
 
-            return fen;
+            //    fen = (row == 0 ? line : line + FENSplitChar) + fen;
+            //}
+
+            //return fen;
         }
         public static string GetFEN(string fen, ChangeType ct)
         {
@@ -193,7 +199,7 @@ namespace cchess_con
                 return fen;
 
             IEnumerable<string> result;
-            IEnumerable<string> ReverseRow(IEnumerable<string> fenArray) { return fenArray.Reverse(); }
+            IEnumerable<string> ReverseRow(IEnumerable<string> fenArray) => fenArray.Reverse();
             IEnumerable<string> ReverseCol(IEnumerable<string> fenArray)
             {
                 List<string> lines = new();
@@ -232,10 +238,28 @@ namespace cchess_con
                 int col = 0;
                 foreach(char ch in fenArray[row])
                     if(char.IsDigit(ch))
-                        col += Convert.ToInt32(ch) - Convert.ToInt32('0');
+                        //col += Convert.ToInt32(ch) - Convert.ToInt32('0');
+                        col += Convert.ToInt32(ch.ToString());
                     else
                         this[Seat.SymmetryRow(row), col++].Piece = GetNotAtSeatPiece(ch);
             }
+
+            //fen = Regex.Replace(fen, FENSplitChar.ToString(), "");
+            //fen = Regex.Replace(fen, @"\d",
+            //    (Match match) => new string(Piece.NullPiece.Char, Convert.ToInt32(match.Value)));
+
+            //if(fen.Length != Seat.RowNum * Seat.ColNum)
+            //    return false;
+
+            //Reset();
+            //int index = 0;
+            //for(int row = 0;row < Seat.RowNum;row++)
+            //    for(int col = 0;col < Seat.ColNum;col++)
+            //    {
+            //        var ch = fen[index++];
+            //        if(char.IsLetter(ch))
+            //            this[Seat.SymmetryRow(row), col].Piece = GetNotAtSeatPiece(ch);
+            //    }
 
             SetBottomColor();
             return true;

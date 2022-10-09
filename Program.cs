@@ -72,8 +72,6 @@ void TestBoard()
     };
     foreach(string fen in fens)
     {
-        string pieceChars = Regex.Replace(fen, @"(?<num>\d)", $"{new string("_")}"); // , ${num}
-
         board.SetFEN(fen);
         foreach(var ct in cts)
         {

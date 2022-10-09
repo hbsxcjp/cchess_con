@@ -64,7 +64,8 @@
 
 
 
-NoChange: rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR
+NoChange: 
+rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR
 　　　　　　　黑　方　　　　　　　
 １　２　３　４　５　６　７　８　９
 車━馬━象━士━将━士━象━馬━車
@@ -123,7 +124,8 @@ NoChange: rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR
 黑卒p(6,8) CanMoveCoord: (5,8)【1】
 总计：【88】
 
-SYMMETRY_V: RNBAKABNR/9/1C5C1/P1P1P1P1P/9/9/p1p1p1p1p/1c5c1/9/rnbakabnr
+SYMMETRY_V: 
+RNBAKABNR/9/1C5C1/P1P1P1P1P/9/9/p1p1p1p1p/1c5c1/9/rnbakabnr
 　　　　　　　红　方　　　　　　　
 一　二　三　四　五　六　七　八　九
 车━马━相━仕━帅━仕━相━马━车
@@ -182,7 +184,8 @@ SYMMETRY_V: RNBAKABNR/9/1C5C1/P1P1P1P1P/9/9/p1p1p1p1p/1c5c1/9/rnbakabnr
 黑卒p(3,8) CanMoveCoord: (4,8)【1】
 总计：【88】
 
-ROTATE: rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR
+ROTATE: 
+rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR
 　　　　　　　黑　方　　　　　　　
 １　２　３　４　５　６　７　８　９
 車━馬━象━士━将━士━象━馬━車
@@ -241,7 +244,8 @@ ROTATE: rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR
 黑卒p(6,8) CanMoveCoord: (5,8)【1】
 总计：【88】
 
-SYMMETRY_H: rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR
+SYMMETRY_H: 
+rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR
 　　　　　　　黑　方　　　　　　　
 １　２　３　４　５　６　７　８　９
 車━馬━象━士━将━士━象━馬━車
@@ -300,7 +304,8 @@ SYMMETRY_H: rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR
 黑卒p(6,8) CanMoveCoord: (5,8)【1】
 总计：【88】
 
-EXCHANGE: RNBAKABNR/9/1C5C1/P1P1P1P1P/9/9/p1p1p1p1p/1c5c1/9/rnbakabnr
+EXCHANGE: 
+RNBAKABNR/9/1C5C1/P1P1P1P1P/9/9/p1p1p1p1p/1c5c1/9/rnbakabnr
 　　　　　　　红　方　　　　　　　
 一　二　三　四　五　六　七　八　九
 车━马━相━仕━帅━仕━相━马━车
@@ -359,7 +364,8 @@ EXCHANGE: RNBAKABNR/9/1C5C1/P1P1P1P1P/9/9/p1p1p1p1p/1c5c1/9/rnbakabnr
 黑卒p(3,8) CanMoveCoord: (4,8)【1】
 总计：【88】
 
-NoChange: 5a3/4ak2r/6R2/8p/9/9/9/B4N2B/4K4/3c5
+NoChange: 
+5a3/4ak2r/6R2/8p/9/9/9/B4N2B/4K4/3c5
 　　　　　　　黑　方　　　　　　　
 １　２　３　４　５　６　７　８　９
 ┏━┯━┯━┯━┯━士━┯━┯━┓
@@ -397,7 +403,8 @@ NoChange: 5a3/4ak2r/6R2/8p/9/9/9/B4N2B/4K4/3c5
 黑卒p(6,8) CanMoveCoord: (5,8)【1】
 总计：【58】
 
-SYMMETRY_V: 3c5/4K4/B4N2B/9/9/9/8p/6R2/4ak2r/5a3
+SYMMETRY_V: 
+3c5/4K4/B4N2B/9/9/9/8p/6R2/4ak2r/5a3
 　　　　　　　红　方　　　　　　　
 一　二　三　四　五　六　七　八　九
 ┏━┯━┯━砲━┯━┯━┯━┯━┓
@@ -435,7 +442,8 @@ SYMMETRY_V: 3c5/4K4/B4N2B/9/9/9/8p/6R2/4ak2r/5a3
 黑卒p(3,8) CanMoveCoord: (4,8)【1】
 总计：【58】
 
-ROTATE: 3a5/r2ka4/2R6/p8/9/9/9/B2N4B/4K4/5c3
+ROTATE: 
+3a5/r2ka4/2R6/p8/9/9/9/B2N4B/4K4/5c3
 　　　　　　　黑　方　　　　　　　
 １　２　３　４　５　６　７　８　９
 ┏━┯━┯━士━┯━┯━┯━┯━┓
@@ -473,7 +481,8 @@ ROTATE: 3a5/r2ka4/2R6/p8/9/9/9/B2N4B/4K4/5c3
 黑卒p(6,0) CanMoveCoord: (5,0)【1】
 总计：【58】
 
-SYMMETRY_H: 5a3/4ak2r/6R2/8p/9/9/9/B4N2B/4K4/3c5
+SYMMETRY_H: 
+5a3/4ak2r/6R2/8p/9/9/9/B4N2B/4K4/3c5
 　　　　　　　黑　方　　　　　　　
 １　２　３　４　５　６　７　８　９
 ┏━┯━┯━┯━┯━士━┯━┯━┓
@@ -511,7 +520,8 @@ SYMMETRY_H: 5a3/4ak2r/6R2/8p/9/9/9/B4N2B/4K4/3c5
 黑卒p(6,8) CanMoveCoord: (5,8)【1】
 总计：【58】
 
-EXCHANGE: 5A3/4AK2R/6r2/8P/9/9/9/b4n2b/4k4/3C5
+EXCHANGE: 
+5A3/4AK2R/6r2/8P/9/9/9/b4n2b/4k4/3C5
 　　　　　　　红　方　　　　　　　
 一　二　三　四　五　六　七　八　九
 ┏━┯━┯━┯━┯━仕━┯━┯━┓
@@ -549,7 +559,8 @@ EXCHANGE: 5A3/4AK2R/6r2/8P/9/9/9/b4n2b/4k4/3C5
 黑車r(7,6) CanMoveCoord: (6,6)(5,6)(4,6)(3,6)(2,6)(1,6)(0,6)(8,6)(9,6)(7,5)(7,4)(7,3)(7,2)(7,1)(7,0)(7,7)(7,8)【17】
 总计：【58】
 
-NoChange: 5k3/9/9/9/9/9/4rp3/2R1C4/4K4/9
+NoChange: 
+5k3/9/9/9/9/9/4rp3/2R1C4/4K4/9
 　　　　　　　黑　方　　　　　　　
 １　２　３　４　５　６　７　８　９
 ┏━┯━┯━┯━┯━将━┯━┯━┓
@@ -582,7 +593,8 @@ NoChange: 5k3/9/9/9/9/9/4rp3/2R1C4/4K4/9
 黑卒p(3,5) CanMoveCoord: (3,6)(2,5)【2】
 总计：【29】
 
-SYMMETRY_V: 9/4K4/2R1C4/4rp3/9/9/9/9/9/5k3
+SYMMETRY_V: 
+9/4K4/2R1C4/4rp3/9/9/9/9/9/5k3
 　　　　　　　红　方　　　　　　　
 一　二　三　四　五　六　七　八　九
 ┏━┯━┯━┯━┯━┯━┯━┯━┓
@@ -615,7 +627,8 @@ SYMMETRY_V: 9/4K4/2R1C4/4rp3/9/9/9/9/9/5k3
 黑卒p(6,5) CanMoveCoord: (6,6)(7,5)【2】
 总计：【29】
 
-ROTATE: 3k5/9/9/9/9/9/3pr4/4C1R2/4K4/9
+ROTATE: 
+3k5/9/9/9/9/9/3pr4/4C1R2/4K4/9
 　　　　　　　黑　方　　　　　　　
 １　２　３　４　５　６　７　８　９
 ┏━┯━┯━将━┯━┯━┯━┯━┓
@@ -648,7 +661,8 @@ ROTATE: 3k5/9/9/9/9/9/3pr4/4C1R2/4K4/9
 黑卒p(3,3) CanMoveCoord: (3,2)(2,3)【2】
 总计：【29】
 
-SYMMETRY_H: 5k3/9/9/9/9/9/4rp3/2R1C4/4K4/9
+SYMMETRY_H: 
+5k3/9/9/9/9/9/4rp3/2R1C4/4K4/9
 　　　　　　　黑　方　　　　　　　
 １　２　３　４　５　６　７　８　９
 ┏━┯━┯━┯━┯━将━┯━┯━┓
@@ -681,7 +695,8 @@ SYMMETRY_H: 5k3/9/9/9/9/9/4rp3/2R1C4/4K4/9
 黑卒p(3,5) CanMoveCoord: (3,6)(2,5)【2】
 总计：【29】
 
-EXCHANGE: 5K3/9/9/9/9/9/4RP3/2r1c4/4k4/9
+EXCHANGE: 
+5K3/9/9/9/9/9/4RP3/2r1c4/4k4/9
 　　　　　　　红　方　　　　　　　
 一　二　三　四　五　六　七　八　九
 ┏━┯━┯━┯━┯━帅━┯━┯━┓
@@ -714,5 +729,5 @@ EXCHANGE: 5K3/9/9/9/9/9/4RP3/2r1c4/4k4/9
 黑砲c(2,4) CanMoveCoord: 【0】
 总计：【29】
 
-    RunTime 00:00:00.31
+RunTime 00:00:00.30
 
