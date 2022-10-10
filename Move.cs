@@ -54,6 +54,21 @@ namespace cchess_con
         }
         public int AfterNum { get { return _afterMoves?.Count ?? 0; } }
         public Piece ToPiece { get; set; }
+        public string PGNICCSText
+        {
+            get
+            {
+                const string colChars = "abcdefghi";
+                return string.Format($"{colChars[CoordPair.FromCoord.col]}{CoordPair.FromCoord.row}{colChars[CoordPair.ToCoord.col]}{CoordPair.ToCoord.row}");
+            }
+        }
+        public string PGNRowColText
+        {
+            get
+            {
+                return string.Format($"{CoordPair.FromCoord.row}{CoordPair.FromCoord.col}{CoordPair.ToCoord.row}{CoordPair.ToCoord.col}");
+            }
+        }
 
         public void Done(Board board)
         {
@@ -105,10 +120,11 @@ namespace cchess_con
         public void ClearAfterMovesError(ManualMove manualMove)
         {
             if(_afterMoves != null)
-                _afterMoves.RemoveAll(move => !manualMove.CurMoveAccept(move.CoordPair));
+                _afterMoves.RemoveAll(move => !manualMove.GetCurMoveAccept(move.CoordPair));
         }
 
-        new public string ToString() => String.Format($"{new string('\t', BeforeNum)}{Before?.Id}.{CoordPair.ToString()}_{Id} {Remark}\n");
+        new public string ToString()
+            => String.Format($"{new string('\t', BeforeNum)}{Before?.Id}.{CoordPair.ToString()}_{Id} {Remark}\n");
 
         private List<Move>? _afterMoves;
     }

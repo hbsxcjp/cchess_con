@@ -20,10 +20,10 @@ List<string> fileNames = new(){
         //"中炮【马8进7】",
         //"黑用开局库",
         //"仙人指路全集（史上最全最新版）",
-        "飞相局【卒7进1】",
+        //"飞相局【卒7进1】",
         //"中炮【马2进3】"
     };
-string[] extName = { ".xqf", ".cm" };
+string[] extName = { ".xqf", ".cm", ".pgn" };
 
 void TestBoard()
 {
@@ -93,19 +93,19 @@ void TestManual()
     Stopwatch stopWatch = new();
     stopWatch.Restart();
 
-    var action = 1 == 0 ? FileAction.XQF_CM : FileAction.CM_CM;
+    int fromExtIndex = 1, toExtIndex = 2; // 0,1,2
     using StreamWriter sw = File.CreateText(path);
     foreach(string fileName in fileNames)
     {
         string theFileName = output + fileName;
-        string fromFileName = theFileName + extName[action == FileAction.XQF_CM ? 0 : 1];
-        string toFileName = theFileName + (action == FileAction.XQF_CM ? "" : "-副本") + extName[1];
+        string fromFileName = theFileName + extName[fromExtIndex];
+        string toFileName = theFileName + (fromExtIndex != toExtIndex ? "" : "-副本") + extName[toExtIndex];
 
         Manual manual = new(fromFileName);
         manual.Write(toFileName);
         sw.Write(fromFileName[(fromFileName.LastIndexOf('\\') + 1)..] + " => "
             + toFileName[(toFileName.LastIndexOf('\\') + 1)..] + "\n"
-            + manual.ToString()); // true, true
+            + manual.ToString(true, true)); // true, true
 
         //foreach(var aspect in manual.GetAspects()) sw.WriteLine("aspect: " + aspect.ToString());
     }

@@ -18,10 +18,11 @@ using System.Xml;
 
 namespace cchess_con
 {
-    internal enum FileAction
+    internal enum PGNType
     {
-        XQF_CM,
-        CM_CM
+        PGN_ZH,
+        PGN_ICCS,
+        PGN_ROWCOL
     }
 
     internal class Manual
@@ -36,26 +37,46 @@ namespace cchess_con
 
         public Manual(string fileName) : this()
         {
-            if(fileName[fileName.LastIndexOf('.')..].ToUpper() == ".XQF")
-                ReadXQF(fileName);
-            else
-                ReadCM(fileName);
+            switch(fileName[fileName.LastIndexOf('.')..].ToUpper())
+            {
+                case ".XQF":
+                    ReadXQF(fileName);
+                    break;
+                case ".CM":
+                    ReadCM(fileName);
+                    break;
+                case ".PGN":
+                    //ReadPGN(fileName);
+                    break;
+                default:
+                    return;
+            }
         }
-        public void Write(string fileName) => WriteCM(fileName);
+        public void Write(string fileName)
+        {
+            switch(fileName[fileName.LastIndexOf('.')..].ToUpper())
+            {
+                case ".XQF":
+                    //ReadXQF(fileName);
+                    break;
+                case ".CM":
+                    WriteCM(fileName);
+                    break;
+                case ".PGN":
+                    WritePGN(fileName);
+                    break;
+                default:
+                    return;
+            }
+        }
+
 
         public List<(string fen, ushort data)> GetAspects() => _manualMove.GetAspects();
 
         public string InfoValue(string key) => _info[key];
         public void SetInfoValue(string key, string value) => _info[key] = value.Trim();
         public string ToString(bool showMove = false, bool isOrder = false)
-        {
-            string result = "";
-            foreach(var kv in _info)
-                result += string.Format($"[{kv.Key} \"{kv.Value}\"]\n");
-
-            return result + _manualMove.ToString(showMove, isOrder);
-            //return _manualMove.ToString() + '\n';
-        }
+            => InfoString() + _manualMove.ToString(showMove, isOrder);
 
         private void ReadXQF(string fileName)
         {
@@ -335,7 +356,22 @@ namespace cchess_con
 
             _manualMove.WriteCM(writer);
         }
+        private void WritePGN(string fileName)
+        {
+            using var stream = File.Open(fileName, FileMode.Create);
+            using var writer = new StreamWriter(stream);
 
+            writer.Write(InfoString());
+            _manualMove.WritePGN(writer, PGNType.PGN_ROWCOL); // PGNType.PGN_ICCS
+        }
+        public string InfoString()
+        {
+            string result = "";
+            foreach(var kv in _info)
+                result += string.Format($"[{kv.Key} \"{kv.Value}\"]\n");
+
+            return result;
+        }
         private bool SetBoard() => _manualMove.SetBoard(InfoValue("FEN"));
         private const string FEN = "rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR";
 
@@ -355,10 +391,21 @@ namespace cchess_con
 
         public Move CurMove { get; set; }
         public string? CurRemark { get { return CurMove.Remark; } set { CurMove.Remark = value?.Trim(); } }
+        public string GetPGNText(Move move, PGNType pgn = PGNType.PGN_ZH)
+        {
+            if(pgn == PGNType.PGN_ZH)
+                return _board.GetZhStr(move.CoordPair);
+            else if(pgn == PGNType.PGN_ICCS)
+                return move.PGNICCSText;
+            else if(pgn == PGNType.PGN_ROWCOL)
+                return move.PGNRowColText;
+
+            return "";
+        }
 
         public List<Coord> GetCanPutCoords(Piece piece) => piece.PutCoord(_board.BottomColor == piece.Color);
         public List<Coord> GetCanMoveCoords(Coord fromCoord) => _board.CanMoveCoord(fromCoord);
-        public bool CurMoveAccept(CoordPair coordPair) => _board.CanMoveCoord(coordPair.FromCoord).Contains(coordPair.ToCoord);
+        public bool GetCurMoveAccept(CoordPair coordPair) => _board.CanMoveCoord(coordPair.FromCoord).Contains(coordPair.ToCoord);
         public bool SetBoard(string fen) => _board.SetFEN(fen.Split(' ')[0]);
         public void AddMove(CoordPair coordPair, string? remark, bool visible)
         {
@@ -463,6 +510,7 @@ namespace cchess_con
                 }
             }
         }
+
         public void WriteCM(BinaryWriter writer)
         {
             static void writeRemarkAfterNum(BinaryWriter writer, string? remark, int afterNum)
@@ -480,6 +528,32 @@ namespace cchess_con
                 writer.Write(move.CoordPair.Data);
                 writeRemarkAfterNum(writer, move.Remark, move.AfterNum);
             }
+        }
+
+        public void WritePGN(StreamWriter writer, PGNType pgn = PGNType.PGN_ZH)
+        {
+            static string GetPGNRemark(Move move)
+            {
+                if(move.Remark == null)
+                    return "";
+
+                return "{" + move.Remark + "}";
+            }
+
+            writer.Write(GetPGNRemark(_rootMove) + "\n");
+            var oldEnumMoveDoned = EnumMoveDoned;
+            if(pgn == PGNType.PGN_ZH)
+                EnumMoveDoned = true;
+            foreach(var move in this)
+            {
+                writer.Write(
+                    move.Before?.Id.ToString() + "."
+                    + GetPGNText(move, pgn)
+                    + (move.Visible ? "" : "_")
+                    + GetPGNRemark(move) + " ");
+            }
+            if(pgn == PGNType.PGN_ZH)
+                EnumMoveDoned = oldEnumMoveDoned;
         }
 
         public List<(string fen, ushort data)> GetAspects()
