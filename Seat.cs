@@ -26,8 +26,13 @@ namespace cchess_con
         public Coord(ushort data) : this(data >> 4, data & 0X0F)
         {
         }
+        public Coord(string iccs) : this(Convert.ToInt32(iccs[1].ToString()),
+            ColChars.IndexOf(iccs[0]))
+        {
+        }
 
         public ushort Data { get { return (ushort)(row << 4 | col); } }
+        public string ICCSText() => string.Format($"{ColChars[col]}{row}");
 
         public Coord GetCoord(ChangeType ct)
         {
@@ -43,6 +48,8 @@ namespace cchess_con
 
         new public string ToString() => string.Format($"({row},{col})");
 
+        const string ColChars = "abcdefghi";
+
         public int row;
         public int col;
     }
@@ -57,6 +64,9 @@ namespace cchess_con
         public CoordPair(ushort data) : this(new((ushort)(data >> 8)), new((ushort)(data & 0XFF)))
         {
         }
+        public CoordPair(string iccs) : this(new(iccs[..2]), new(iccs[2..]))
+        {
+        }
 
         public ushort Data { get { return (ushort)(FromCoord.Data << 8 | ToCoord.Data); } }
         public static CoordPair GetCoordPair(ushort data, ChangeType ct)
@@ -67,6 +77,10 @@ namespace cchess_con
 
             return new CoordPair(coordPair.FromCoord.GetCoord(ct), coordPair.ToCoord.GetCoord(ct));
         }
+
+        public string ICCSText() => FromCoord.ICCSText() + ToCoord.ICCSText();
+        public string DataText() => string.Format($"{Data:X4}");
+
         new public string ToString() => string.Format($"[{FromCoord.ToString()},{ToCoord.ToString()}]");
 
         public Coord FromCoord;

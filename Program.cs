@@ -93,7 +93,7 @@ void TestManual()
     Stopwatch stopWatch = new();
     stopWatch.Restart();
 
-    int fromExtIndex = 1, toExtIndex = 2; // 0,1,2
+    int fromExtIndex = 2, toExtIndex = 2; // 0,1,2
     using StreamWriter sw = File.CreateText(path);
     foreach(string fileName in fileNames)
     {

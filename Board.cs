@@ -272,7 +272,7 @@ namespace cchess_con
 
             PieceColor color = RedNumChars.Contains(zhStr[3]) ? PieceColor.RED : PieceColor.BLACK;
             bool isBottom = color == BottomColor;
-            int index, movDir = ("退平进".IndexOf(zhStr[2]) - 1) * (isBottom ? 1 : -1);
+            int index, movDir = (MoveChars.IndexOf(zhStr[2]) - 1) * (isBottom ? 1 : -1);
 
             List<Piece> pieces;
             PieceKind kind = GetKind_name(zhStr[0]);
@@ -395,6 +395,8 @@ namespace cchess_con
 
             return result + String.Format($"总计：【{total}】\n", total);
         }
+
+        public static string PGNZHChars() => NameChars + RedNumChars + BlackNumChars + PositionChars + MoveChars;
 
         public string ToString(bool showEdge = true)
         {
@@ -558,10 +560,10 @@ namespace cchess_con
 
         private static int GetColorIndex(char ch) => char.IsUpper(ch) ? 0 : 1;
         private static int GetKindIndex(char ch) => ("KABNRCPkabnrcp".IndexOf(ch)) % KindNum;
-        private static PieceKind GetKind_name(char name) => (PieceKind)("帅仕相马车炮兵将士象马车炮卒".IndexOf(name) % KindNum);
+        private static PieceKind GetKind_name(char name) => (PieceKind)(NameChars.IndexOf(name) % KindNum);
         private static bool IsLinePiece(PieceKind kind) => (kind == PieceKind.KING || kind == PieceKind.ROOK || kind == PieceKind.CANNON || kind == PieceKind.PAWN);
         private static string NumChars(PieceColor color) => color == PieceColor.RED ? RedNumChars : BlackNumChars;
-        private static string PreChars(int count) => (count == 2 ? "前后" : (count == 3 ? "前中后" : "一二三四五"));
+        private static string PreChars(int count) => (count == 2 ? "前后" : (count == 3 ? PositionChars : "一二三四五"));
 
         // [Color][Kind][Index]
         private readonly Piece[][][] _pieces;
@@ -570,8 +572,11 @@ namespace cchess_con
 
         private const char FENSplitChar = '/';
 
+        private const string NameChars = "帅仕相马车炮兵将士象马车炮卒";
         private const string RedNumChars = "一二三四五六七八九";
         private const string BlackNumChars = "１２３４５６７８９";
+        private const string PositionChars = "前中后";
+        private const string MoveChars = "退平进";
 
         private const int ColorNum = 2;
         private const int KindNum = 7;

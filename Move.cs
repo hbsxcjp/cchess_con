@@ -54,21 +54,6 @@ namespace cchess_con
         }
         public int AfterNum { get { return _afterMoves?.Count ?? 0; } }
         public Piece ToPiece { get; set; }
-        public string PGNICCSText
-        {
-            get
-            {
-                const string colChars = "abcdefghi";
-                return string.Format($"{colChars[CoordPair.FromCoord.col]}{CoordPair.FromCoord.row}{colChars[CoordPair.ToCoord.col]}{CoordPair.ToCoord.row}");
-            }
-        }
-        public string PGNRowColText
-        {
-            get
-            {
-                return string.Format($"{CoordPair.FromCoord.row}{CoordPair.FromCoord.col}{CoordPair.ToCoord.row}{CoordPair.ToCoord.col}");
-            }
-        }
 
         public void Done(Board board)
         {
