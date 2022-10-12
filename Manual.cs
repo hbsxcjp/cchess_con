@@ -386,7 +386,7 @@ namespace cchess_con
             _board = new();
             _rootMove = Move.CreateRootMove();
             CurMove = _rootMove;
-            EnumMoveDoned = false;
+            EnumMoveDone = false;
         }
 
         public Move CurMove { get; set; }
@@ -541,38 +541,35 @@ namespace cchess_con
             }
 
             writer.Write(GetPGNRemark(_rootMove) + "\n");
-            var oldEnumMoveDoned = EnumMoveDoned;
+            var oldEnumMoveDone = EnumMoveDone;
             if(pgn == PGNType.PGN_ZH)
-                EnumMoveDoned = true;
+                EnumMoveDone = true;
             foreach(var move in this)
             {
-                writer.Write(
-                    move.Before?.Id.ToString() + "."
-                    + GetPGNText(move, pgn)
-                    + (move.Visible ? "" : "_")
+                writer.Write(string.Format($"{move.Before?.Id.ToString()}.{GetPGNText(move, pgn)}{(move.Visible ? "" : "_")}")
                     + GetPGNRemark(move) + " ");
             }
             if(pgn == PGNType.PGN_ZH)
-                EnumMoveDoned = oldEnumMoveDoned;
+                EnumMoveDone = oldEnumMoveDone;
         }
 
         public List<(string fen, ushort data)> GetAspects()
         {
             List<(string fen, ushort data)> aspects = new();
-            var oldEnumMoveDoned = EnumMoveDoned;
-            EnumMoveDoned = true;
+            var oldEnumMoveDone = EnumMoveDone;
+            EnumMoveDone = true;
             ChangeType ct = GetChangeType();
             foreach(var move in this)
                 aspects.Add((Board.GetFEN(_board.GetFEN(), ct), move.CoordPair.Data));
-            EnumMoveDoned = oldEnumMoveDoned;
+            EnumMoveDone = oldEnumMoveDone;
 
             return aspects;
         }
 
         public void ClearError()
         {
-            var oldEnumMoveDoned = EnumMoveDoned;
-            EnumMoveDoned = true;
+            var oldEnumMoveDone = EnumMoveDone;
+            EnumMoveDone = true;
             _rootMove.ClearAfterMovesError(this);
             foreach(var move in this)
             {
@@ -580,7 +577,7 @@ namespace cchess_con
                 move.ClearAfterMovesError(this);
                 move.Undo(_board);
             }
-            EnumMoveDoned = oldEnumMoveDoned;
+            EnumMoveDone = oldEnumMoveDone;
         }
 
         public string ToString(bool showMove = false, bool isOrder = false)
@@ -621,7 +618,7 @@ namespace cchess_con
 
         IEnumerator IEnumerable.GetEnumerator() => (IEnumerator)GetEnumerator();
         public ManualMoveEnum GetEnumerator() => new(this);
-        public bool EnumMoveDoned { get; set; }
+        public bool EnumMoveDone { get; set; }
 
         private void GoMove(Move move) => (CurMove = move).Done(_board);
         private ChangeType GetChangeType() => _board.BottomColor == PieceColor.RED ? ChangeType.NoChange : ChangeType.EXCHANGE;
@@ -656,7 +653,7 @@ namespace cchess_con
         {
             if(_moveQueue.Count == 0)
             {
-                if(_manualMove.EnumMoveDoned)
+                if(_manualMove.EnumMoveDone)
                     _manualMove.BackStart();
                 return false;
             }
@@ -674,7 +671,7 @@ namespace cchess_con
             _curMove = curMove;
             _curMove.Id = _id++;
             // 根据枚举特性判断是否执行着法
-            if(_manualMove.EnumMoveDoned)
+            if(_manualMove.EnumMoveDone)
                 _manualMove.GoTo(_curMove.Before);
 
             var afterMoves = _curMove.AfterMoves();

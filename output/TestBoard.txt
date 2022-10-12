@@ -729,5 +729,5 @@ EXCHANGE:
 黑砲c(2,4) CanMoveCoord: 【0】
 总计：【29】
 
-RunTime 00:00:00.24
+RunTime 00:00:00.32
 
