@@ -364,15 +364,16 @@ namespace cchess_con
 
             using var stream = File.Open(fileName, FileMode.Open);
             using var reader = new StreamReader(stream);
-            while(reader.Peek() != '0')
+            while(reader.Peek() == '[')
             {
                 string? keyValue = reader.ReadLine();
                 if(keyValue == null)
                     break;
 
-                string infoPattern = @"[(\S+) ""([^""]+)""]"; // ?
+                string infoPattern = @"\[(\S+) ""(.*)""\]"; // ?
                 var match = Regex.Match(keyValue, infoPattern);
-                _info[match.Groups[0].Value] = match.Groups[1].Value;
+                if(match.Success)
+                    _info[match.Groups[0].Value] = match.Groups[1].Value;
             }
             SetBoard();
 
@@ -555,15 +556,15 @@ namespace cchess_con
         public void ReadPGN(StreamReader reader, PGNType pgn = PGNType.PGN_ZH)
         {
             string movesText = reader.ReadToEnd();
-            string remarkPattern = @"(?{([^}]+)})";
+            string remarkPattern = @"(?:\{(.+?)\})";
             var remarkMatch = Regex.Match(movesText, "^" + remarkPattern);
             if(remarkMatch.Success)
                 _rootMove.Remark = remarkMatch.Value;
 
             string pgnText = (pgn == PGNType.PGN_ICCS
                 ? @"(?[a-i]\d){2}"
-                : (pgn == PGNType.PGN_DATA ? @"\d{4}" : string.Format($"[{Board.PGNZHChars()}]{{4}}")));
-            string movePattern = string.Format($"(\\d+).({pgnText})(_?){remarkPattern}?\\s+");
+                : (pgn == PGNType.PGN_DATA ? @"\d{4}" : "[" + Board.PGNZHChars() + @"]{4}"));
+            string movePattern = @"(\d+)\.(" + pgnText + @")(_?)" + remarkPattern + @"?\s+";
             var matches = Regex.Matches(movesText, movePattern);
             List<Move> allMoves = new() { _rootMove };
             foreach(Match match in matches)
@@ -580,31 +581,25 @@ namespace cchess_con
 
                 CoordPair coordPair = (pgn == PGNType.PGN_ICCS
                 ? new(moveText)
-                : (pgn == PGNType.PGN_DATA
-                ? new(Convert.ToUInt16(moveText))
-                : _board.GetCoordPair(moveText)));
+                : (pgn == PGNType.PGN_DATA ? new(Convert.ToUInt16(moveText)) : _board.GetCoordPair(moveText)));
 
+                //Move move = ;
                 allMoves.Add(allMoves[id].AddAfterMove(coordPair, remark, visible));
             }
         }
         public void WritePGN(StreamWriter writer, PGNType pgn = PGNType.PGN_ZH)
         {
-            static string GetPGNRemark(Move move)
-            {
-                if(move.Remark == null)
-                    return "";
-
-                return "{" + move.Remark + "}";
-            }
-
-            writer.Write(GetPGNRemark(_rootMove) + "\n");
+            if(_rootMove.Remark != null)
+                writer.Write(string.Format($"{{{_rootMove.Remark}}}\n"));
             var oldEnumMoveDone = EnumMoveDone;
             if(pgn == PGNType.PGN_ZH)
                 EnumMoveDone = true;
             foreach(var move in this)
             {
-                writer.Write(string.Format($"{move.Before?.Id.ToString()}.{GetPGNText(move, pgn)}{(move.Visible ? "" : "_")}")
-                    + GetPGNRemark(move) + " ");
+                writer.Write(move.Before?.Id.ToString() + "."
+                    + GetPGNText(move, pgn)
+                    + (move.Visible ? "" : "_")
+                    + (move.Remark == null ? " " : "{" + move.Remark + "} "));
             }
             if(pgn == PGNType.PGN_ZH)
                 EnumMoveDone = oldEnumMoveDone;
