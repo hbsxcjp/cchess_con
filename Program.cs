@@ -20,7 +20,7 @@ List<string> fileNames = new(){
         //"中炮【马8进7】",
         //"黑用开局库",
         //"仙人指路全集（史上最全最新版）",
-        //"飞相局【卒7进1】",
+        "飞相局【卒7进1】",
         //"中炮【马2进3】"
     };
 string[] extName = { ".xqf", ".cm", ".pgn" };
@@ -93,7 +93,7 @@ void TestManual()
     Stopwatch stopWatch = new();
     stopWatch.Restart();
 
-    int fromExtIndex = 2, toExtIndex = 2; // 0,1,2
+    int fromExtIndex = 1, toExtIndex = 2; // 0,1,2
     using StreamWriter sw = File.CreateText(path);
     foreach(string fileName in fileNames)
     {

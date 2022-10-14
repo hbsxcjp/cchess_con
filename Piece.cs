@@ -472,10 +472,10 @@ namespace cchess_con
         override public List<Coord> MoveCoord(Board board)
         {
             List<Coord> coords = new();
-            bool isBottom = Seat.IsBottom, bottomSide = board.BottomColor == Color;
+            bool isBottom = Seat.IsBottom, isBottomColor = board.IsBottomColor(Color);
             int Row = Seat.Row, Col = Seat.Col;
             // 已过河
-            if(bottomSide != isBottom)
+            if(isBottomColor != isBottom)
             {
                 if(Col > 0)
                     AddCoordDifColor(coords, board, new(Row, Col - 1), Color);
@@ -483,9 +483,9 @@ namespace cchess_con
                     AddCoordDifColor(coords, board, new(Row, Col + 1), Color);
             }
 
-            if(bottomSide && Row < Seat.RowNum - 1)
+            if(isBottomColor && Row < Seat.RowNum - 1)
                 AddCoordDifColor(coords, board, new(Row + 1, Col), Color);
-            else if(!bottomSide && Row > 0)
+            else if(!isBottomColor && Row > 0)
                 AddCoordDifColor(coords, board, new(Row - 1, Col), Color);
 
             return coords;
