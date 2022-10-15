@@ -1,8 +1,15 @@
+#define DEBUG
+
 //See https://aka.ms/new-console-template for more information
-using cchess_con;
+using CChess;
 using System;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
+
+#if DEBUG
+Coord.Test();
+
+#endif
 
 string TimeString(TimeSpan ts) => "RunTime " + String.Format("{0:00}:{1:00}:{2:00}.{3:00}\n",
         ts.Hours, ts.Minutes, ts.Seconds, ts.Milliseconds / 10);
@@ -20,7 +27,7 @@ List<string> fileNames = new(){
         //"中炮【马8进7】",
         //"黑用开局库",
         //"仙人指路全集（史上最全最新版）",
-        "飞相局【卒7进1】",
+        //"飞相局【卒7进1】",
         //"中炮【马2进3】"
     };
 string[] extName = { ".xqf", ".cm", ".pgn" };
@@ -34,26 +41,6 @@ void TestBoard()
     };
 
     string path = output + @"TestBoard.txt";
-    //if(!File.Exists(path))
-    //{
-    //    // Create a file to write to.
-    //    using(StreamWriter sw = File.CreateText(path))
-    //    {
-    //        sw.WriteLine("Hello");
-    //        sw.WriteLine("And");
-    //        sw.WriteLine("Welcome");
-    //    }
-    //}
-
-    // Open the file to read from.
-    //using(StreamReader sr = File.OpenText(path))
-    //{
-    //    string s;
-    //    while((s = sr.ReadLine()) != null)
-    //    {
-    //        Console.WriteLine(s);
-    //    }
-    //}
 
     Stopwatch stopWatch = new();
     stopWatch.Restart();
@@ -65,10 +52,10 @@ void TestBoard()
 
     List<ChangeType> cts = new() {
         ChangeType.NoChange,
-        ChangeType.SYMMETRY_V,
-        ChangeType.ROTATE,
-        ChangeType.SYMMETRY_H,
-        ChangeType.EXCHANGE,
+        ChangeType.Symmetry_V,
+        ChangeType.Rotate,
+        ChangeType.Symmetry_H,
+        ChangeType.Exchange,
     };
     foreach(string fen in fens)
     {

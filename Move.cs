@@ -1,4 +1,4 @@
-﻿using cchess_con;
+﻿using CChess;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -6,13 +6,13 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace cchess_con
+namespace CChess
 {
     internal enum VisibleType
     {
-        ALL,
-        TRUE,
-        FALSE
+        All,
+        True,
+        False
     }
 
     internal class Move
@@ -87,20 +87,20 @@ namespace cchess_con
             return moves;
         }
         // 后置着法列表
-        public List<Move>? AfterMoves(VisibleType vtype = VisibleType.ALL)
+        public List<Move>? AfterMoves(VisibleType vtype = VisibleType.All)
         {
-            if(_afterMoves == null || vtype == VisibleType.ALL)
+            if(_afterMoves == null || vtype == VisibleType.All)
                 return _afterMoves;
 
             List<Move> moves = new(_afterMoves);
-            if(vtype == VisibleType.TRUE)
+            if(vtype == VisibleType.True)
                 moves.RemoveAll(move => !move.Visible);
             else
                 moves.RemoveAll(move => move.Visible);
             return moves;
         }
         // 同步变着列表
-        public List<Move>? OtherMoves(VisibleType vtype = VisibleType.TRUE) => Before?.AfterMoves(vtype) ?? null;
+        public List<Move>? OtherMoves(VisibleType vtype = VisibleType.True) => Before?.AfterMoves(vtype) ?? null;
 
         public void ClearAfterMovesError(ManualMove manualMove)
         {
@@ -108,8 +108,8 @@ namespace cchess_con
                 _afterMoves.RemoveAll(move => !manualMove.GetCurMoveAccept(move.CoordPair));
         }
 
-        new public string ToString()
-            => String.Format($"{new string('\t', BeforeNum)}{Before?.Id}.{CoordPair.ToString()}_{Id} {Remark}\n");
+        override public string ToString()
+            => String.Format($"{new string('\t', BeforeNum)}{Before?.Id}.{CoordPair}_{Id} {Remark}\n");
 
         private List<Move>? _afterMoves;
     }

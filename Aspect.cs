@@ -8,7 +8,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace cchess_con
+namespace CChess
 {
     internal class Aspects
     {
@@ -81,11 +81,11 @@ namespace cchess_con
 
             List<(CoordPair coordPair, List<int> valueList)> coordPairData = new();
             foreach(var dataValue in _aspectDict[findFen])
-                coordPairData.Add((CoordPair.GetCoordPair(dataValue.Key, findCt), dataValue.Value));
+                coordPairData.Add((new CoordPair(dataValue.Key).GetCoordPair(findCt), dataValue.Value));
 
             return coordPairData;
         }
-        new public string ToString()
+        override public string ToString()
         {
             static string FenDataToString(KeyValuePair<string, Dictionary<ushort, List<int>>> fenData,
                   ParallelLoopState loop, string subString)
@@ -128,7 +128,7 @@ namespace cchess_con
             }
 
             if(findCt != ChangeType.NoChange)
-                data = CoordPair.GetCoordPair(data, findCt).Data;
+                data = new CoordPair(data).GetCoordPair(findCt).Data;
 
             if(aspectData.ContainsKey(data))
             {
@@ -147,7 +147,7 @@ namespace cchess_con
             string findFen = "";
             foreach(var ct in new ChangeType[] {
                 ChangeType.NoChange,
-                ChangeType.SYMMETRY_H, })
+                ChangeType.Symmetry_H, })
             {
                 var changeFen = Board.GetFEN(fen, ct);
                 if(_aspectDict.ContainsKey(changeFen))

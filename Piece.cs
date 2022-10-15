@@ -4,24 +4,24 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace cchess_con
+namespace CChess
 {
     internal enum PieceColor
     {
-        RED,
-        BLACK,
+        Red,
+        Black,
         NoColor = -1
     }
 
     internal enum PieceKind
     {
-        KING,
-        ADVISOR,
-        BISHOP,
-        KNIGHT,
-        ROOK,
-        CANNON,
-        PAWN,
+        King,
+        Advisor,
+        Bishop,
+        Knight,
+        Rook,
+        Cannon,
+        Pawn,
         NoKind = -1
     }
 
@@ -51,16 +51,13 @@ namespace cchess_con
 
         virtual public List<Coord> PutCoord(bool isBottom)
         {
-            return Seat.AllCoord();
+            return Coord.GetAllCoord();
         }
 
         // 可移动位置, 排除规则不允许行走的位置、排除同色的位置
         abstract public List<Coord> MoveCoord(Board board);
 
-        new public string ToString
-        {
-            get { return (Color == PieceColor.RED ? "红" : "黑") + PrintName() + Char + Seat.Coord.ToString(); }
-        }
+        override public string ToString() => (Color == PieceColor.Red ? "红" : "黑") + PrintName() + Char + Seat.Coord.ToString();
 
         public static readonly Piece NullPiece = new NullPiece();
 
@@ -72,17 +69,15 @@ namespace cchess_con
 
     }
 
-    internal class PieceColFirstComp: IComparer<Piece>
+    internal class PieceComparer: IComparer<Piece>
     {
         public int Compare(Piece? x, Piece? y)
         {
-            int xCol = x?.Seat.Col ?? 0, yCol = y?.Seat.Col ?? 0;
-            int colComp = xCol.CompareTo(yCol);
-            if(colComp != 0)
-                return colComp;
+            Seat? xseat = x?.Seat, yseat = y?.Seat;
+            if(xseat != null && yseat != null)
+                return new CoordComparer().Compare(xseat.Coord, yseat.Coord);
 
-            int xRow = x?.Seat.Row ?? 0, yRow = y?.Seat.Row ?? 0;
-            return xRow.CompareTo(yRow);
+            return 0;
         }
     }
 
@@ -92,17 +87,17 @@ namespace cchess_con
 
         override public PieceKind Kind
         {
-            get { return PieceKind.KING; }
+            get { return PieceKind.King; }
         }
 
         override public char Char
         {
-            get { return Color == PieceColor.RED ? 'K' : 'k'; }
+            get { return Color == PieceColor.Red ? 'K' : 'k'; }
         }
 
         override public char Name
         {
-            get { return Color == PieceColor.RED ? '帅' : '将'; }
+            get { return Color == PieceColor.Red ? '帅' : '将'; }
         }
 
         override public List<Coord> PutCoord(bool isBottom)
@@ -120,7 +115,7 @@ namespace cchess_con
         override public List<Coord> MoveCoord(Board board)
         {
             List<Coord> coords = new();
-            bool isBottom = Seat.IsBottom;
+            bool isBottom = Seat.Coord.IsBottom;
             int Row = Seat.Row,
                 Col = Seat.Col;
             if(Col > 3)
@@ -142,17 +137,17 @@ namespace cchess_con
 
         override public PieceKind Kind
         {
-            get { return PieceKind.ADVISOR; }
+            get { return PieceKind.Advisor; }
         }
 
         override public char Char
         {
-            get { return Color == PieceColor.RED ? 'A' : 'a'; }
+            get { return Color == PieceColor.Red ? 'A' : 'a'; }
         }
 
         override public char Name
         {
-            get { return Color == PieceColor.RED ? '仕' : '士'; }
+            get { return Color == PieceColor.Red ? '仕' : '士'; }
         }
 
         override public List<Coord> PutCoord(bool isBottom)
@@ -175,7 +170,7 @@ namespace cchess_con
             int Row = Seat.Row,
                 Col = Seat.Col;
             if(Col != 4)
-                AddCoordDifColor(coords, board, new(Seat.IsBottom ? 1 : 8, 4), Color);
+                AddCoordDifColor(coords, board, new(Seat.Coord.IsBottom ? 1 : 8, 4), Color);
             else
             {
                 AddCoordDifColor(coords, board, new(Row - 1, Col - 1), Color);
@@ -194,17 +189,17 @@ namespace cchess_con
 
         override public PieceKind Kind
         {
-            get { return PieceKind.BISHOP; }
+            get { return PieceKind.Bishop; }
         }
 
         override public char Char
         {
-            get { return Color == PieceColor.RED ? 'B' : 'b'; }
+            get { return Color == PieceColor.Red ? 'B' : 'b'; }
         }
 
         override public char Name
         {
-            get { return Color == PieceColor.RED ? '相' : '象'; }
+            get { return Color == PieceColor.Red ? '相' : '象'; }
         }
 
         override public List<Coord> PutCoord(bool isBottom)
@@ -214,9 +209,9 @@ namespace cchess_con
                 midRow = isBottom ? 2 : 7,
                 maxRow = isBottom ? 4 : 9;
             for(int row = minRow;row <= maxRow;row += 4)
-                for(int col = 2;col < Seat.ColNum;col += 4)
+                for(int col = 2;col < Coord.ColCount;col += 4)
                     coords.Add(new(row, col));
-            for(int col = 0;col < Seat.ColNum;col += 4)
+            for(int col = 0;col < Coord.ColCount;col += 4)
                 coords.Add(new(midRow, col));
 
             return coords;
@@ -225,7 +220,7 @@ namespace cchess_con
         override public List<Coord> MoveCoord(Board board)
         {
             List<Coord> coords = new();
-            bool isBottom = Seat.IsBottom;
+            bool isBottom = Seat.Coord.IsBottom;
             int Row = Seat.Row,
                 Col = Seat.Col;
             int maxRow = isBottom ? 4 : 9;
@@ -239,14 +234,14 @@ namespace cchess_con
             {
                 if(Col > 0)
                     AddCoord(Row + 2, Col - 2);
-                if(Col < Seat.ColNum - 1)
+                if(Col < Coord.ColCount - 1)
                     AddCoord(Row + 2, Col + 2);
             }
             if(Row > 0)
             {
                 if(Col > 0)
                     AddCoord(Row - 2, Col - 2);
-                if(Col < Seat.ColNum - 1)
+                if(Col < Coord.ColCount - 1)
                     AddCoord(Row - 2, Col + 2);
             }
 
@@ -260,12 +255,12 @@ namespace cchess_con
 
         override public PieceKind Kind
         {
-            get { return PieceKind.KNIGHT; }
+            get { return PieceKind.Knight; }
         }
 
         override public char Char
         {
-            get { return Color == PieceColor.RED ? 'N' : 'n'; }
+            get { return Color == PieceColor.Red ? 'N' : 'n'; }
         }
 
         override public char Name
@@ -275,7 +270,7 @@ namespace cchess_con
 
         override public char PrintName()
         {
-            return Color == PieceColor.RED ? Name : '馬';
+            return Color == PieceColor.Red ? Name : '馬';
         }
 
         override public List<Coord> MoveCoord(Board board)
@@ -283,22 +278,21 @@ namespace cchess_con
             List<Coord> coords = new();
             int Row = Seat.Row,
                 Col = Seat.Col;
-            Coord[,] allCoordLegs = new Coord[,]
+            ((int row, int col) to, (int row, int col) leg)[] allToLegRowCols =
             {
-                {new(Row - 2, Col - 1), new(Row - 1, Col) } ,
-                {new(Row - 2, Col + 1), new(Row - 1, Col)},
-                {new(Row - 1, Col - 2), new(Row, Col - 1)},
-                {new(Row - 1, Col + 2), new(Row, Col + 1)},
-                {new(Row + 1, Col - 2), new(Row, Col - 1)},
-                {new(Row + 1, Col + 2), new(Row, Col + 1)},
-                {new(Row + 2, Col - 1), new(Row + 1, Col)},
-                {new(Row + 2, Col + 1), new(Row + 1, Col)}
+                ((Row - 2, Col - 1), (Row - 1, Col))  ,
+                ((Row - 2, Col + 1), (Row - 1, Col)),
+                ((Row - 1, Col - 2), (Row, Col - 1)),
+                ((Row - 1, Col + 2), (Row, Col + 1)),
+                ((Row + 1, Col - 2), (Row, Col - 1)),
+                ((Row + 1, Col + 2), (Row, Col + 1)),
+                ((Row + 2, Col - 1), (Row + 1, Col)),
+                ((Row + 2, Col + 1), (Row + 1, Col))
             };
-            for(int i = 0;i < allCoordLegs.GetLength(0);++i)
+            foreach(var (to, leg) in allToLegRowCols)
             {
-                var coord = allCoordLegs[i, 0];
-                if(Seat.IsValid(coord) && board[allCoordLegs[i, 1]].IsNull)
-                    AddCoordDifColor(coords, board, coord, Color);
+                if(Coord.IsValid(to.row, to.col) && board[leg.row, leg.col].IsNull)
+                    AddCoordDifColor(coords, board, new(to.row, to.col), Color);
             }
 
             return coords;
@@ -311,12 +305,12 @@ namespace cchess_con
 
         override public PieceKind Kind
         {
-            get { return PieceKind.ROOK; }
+            get { return PieceKind.Rook; }
         }
 
         override public char Char
         {
-            get { return Color == PieceColor.RED ? 'R' : 'r'; }
+            get { return Color == PieceColor.Red ? 'R' : 'r'; }
         }
 
         override public char Name
@@ -326,7 +320,7 @@ namespace cchess_con
 
         override public char PrintName()
         {
-            return Color == PieceColor.RED ? Name : '車';
+            return Color == PieceColor.Red ? Name : '車';
         }
 
         override public List<Coord> MoveCoord(Board board)
@@ -344,7 +338,7 @@ namespace cchess_con
                 if(!AddCoord(r, Col))
                     break;
 
-            for(int r = Row + 1;r < Seat.RowNum;++r)
+            for(int r = Row + 1;r < Coord.RowCount;++r)
                 if(!AddCoord(r, Col))
                     break;
 
@@ -352,7 +346,7 @@ namespace cchess_con
                 if(!AddCoord(Row, c))
                     break;
 
-            for(int c = Col + 1;c < Seat.ColNum;++c)
+            for(int c = Col + 1;c < Coord.ColCount;++c)
                 if(!AddCoord(Row, c))
                     break;
 
@@ -366,12 +360,12 @@ namespace cchess_con
 
         override public PieceKind Kind
         {
-            get { return PieceKind.CANNON; }
+            get { return PieceKind.Cannon; }
         }
 
         override public char Char
         {
-            get { return Color == PieceColor.RED ? 'C' : 'c'; }
+            get { return Color == PieceColor.Red ? 'C' : 'c'; }
         }
 
         override public char Name
@@ -381,7 +375,7 @@ namespace cchess_con
 
         override public char PrintName()
         {
-            return Color == PieceColor.RED ? Name : '砲';
+            return Color == PieceColor.Red ? Name : '砲';
         }
 
         override public List<Coord> MoveCoord(Board board)
@@ -414,7 +408,7 @@ namespace cchess_con
                     break;
 
             skiped = false;
-            for(int r = Row + 1;r < Seat.RowNum;++r)
+            for(int r = Row + 1;r < Coord.RowCount;++r)
                 if(AddCoordToBreak(r, Col))
                     break;
 
@@ -424,7 +418,7 @@ namespace cchess_con
                     break;
 
             skiped = false;
-            for(int c = Col + 1;c < Seat.ColNum;++c)
+            for(int c = Col + 1;c < Coord.ColCount;++c)
                 if(AddCoordToBreak(Row, c))
                     break;
 
@@ -438,17 +432,17 @@ namespace cchess_con
 
         override public PieceKind Kind
         {
-            get { return PieceKind.PAWN; }
+            get { return PieceKind.Pawn; }
         }
 
         override public char Char
         {
-            get { return Color == PieceColor.RED ? 'P' : 'p'; }
+            get { return Color == PieceColor.Red ? 'P' : 'p'; }
         }
 
         override public char Name
         {
-            get { return Color == PieceColor.RED ? '兵' : '卒'; }
+            get { return Color == PieceColor.Red ? '兵' : '卒'; }
         }
 
         override public List<Coord> PutCoord(bool isBottom)
@@ -457,13 +451,13 @@ namespace cchess_con
             int minRow = isBottom ? 3 : 5,
                 maxRow = isBottom ? 4 : 6;
             for(int row = minRow;row <= maxRow;++row)
-                for(int col = 0;col < Seat.ColNum;col += 2)
+                for(int col = 0;col < Coord.ColCount;col += 2)
                     coords.Add(new(row, col));
 
             minRow = isBottom ? 5 : 0;
             maxRow = isBottom ? 9 : 4;
             for(int row = minRow;row <= maxRow;++row)
-                for(int col = 0;col < Seat.ColNum;++col)
+                for(int col = 0;col < Coord.ColCount;++col)
                     coords.Add(new(row, col));
 
             return coords;
@@ -472,18 +466,18 @@ namespace cchess_con
         override public List<Coord> MoveCoord(Board board)
         {
             List<Coord> coords = new();
-            bool isBottom = Seat.IsBottom, isBottomColor = board.IsBottomColor(Color);
+            bool isBottom = Seat.Coord.IsBottom, isBottomColor = board.IsBottomColor(Color);
             int Row = Seat.Row, Col = Seat.Col;
             // 已过河
             if(isBottomColor != isBottom)
             {
                 if(Col > 0)
                     AddCoordDifColor(coords, board, new(Row, Col - 1), Color);
-                if(Col < Seat.ColNum - 1)
+                if(Col < Coord.ColCount - 1)
                     AddCoordDifColor(coords, board, new(Row, Col + 1), Color);
             }
 
-            if(isBottomColor && Row < Seat.RowNum - 1)
+            if(isBottomColor && Row < Coord.RowCount - 1)
                 AddCoordDifColor(coords, board, new(Row + 1, Col), Color);
             else if(!isBottomColor && Row > 0)
                 AddCoordDifColor(coords, board, new(Row - 1, Col), Color);
