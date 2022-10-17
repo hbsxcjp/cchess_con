@@ -664,9 +664,9 @@ namespace CChess
         private string GetPGNText(CoordPair coordPair, PGNType pgn)
         {
             if(pgn == PGNType.Iccs)
-                return coordPair.ICCSText();
+                return coordPair.ICCS;
             else if(pgn == PGNType.Data)
-                return coordPair.DataText();
+                return coordPair.DataText;
             //(pgn == PGNType.Zh)
             return _board.GetZhStr(coordPair);
         }

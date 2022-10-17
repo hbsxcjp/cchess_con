@@ -17,21 +17,18 @@ namespace CChess
 
     internal class Move
     {
-        public Move(bool visible = true)
+        public Move(CoordPair coordPair, string? remark = null, bool visible = true)
         {
             Before = null;
+            CoordPair = coordPair;
+            Remark = remark;
             ToPiece = Piece.NullPiece;
 
             Visible = visible;
             _afterMoves = null;
         }
-        public Move(CoordPair coordPair, string? remark = null, bool visible = true) : this(visible)
-        {
-            CoordPair = coordPair;
-            Remark = remark;
-        }
 
-        public static Move CreateRootMove() { return new(); }
+        public static Move CreateRootMove() { return new(new CoordPair(0)); }
 
         public int Id { get; set; }
         public Move? Before { get; set; }
