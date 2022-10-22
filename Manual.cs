@@ -418,7 +418,8 @@ namespace CChess
 
         public List<Coord> GetCanPutCoords(Piece piece) => piece.PutCoord(_board.IsBottomColor(piece.Color));
         public List<Coord> GetCanMoveCoords(Coord fromCoord) => _board.CanMoveCoord(fromCoord);
-        public bool GetCurMoveAccept(CoordPair coordPair) => _board.CanMoveCoord(coordPair.FromCoord).Contains(coordPair.ToCoord);
+        public bool AcceptCoordPair(CoordPair coordPair) 
+            => _board.CanMoveCoord(coordPair.FromCoord).Contains(coordPair.ToCoord);
         public bool SetBoard(string fen) => _board.SetFEN(fen.Split(' ')[0]);
         public void AddMove(CoordPair coordPair, string? remark, bool visible)
         {

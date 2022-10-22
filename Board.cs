@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using System.Drawing;
 using System.Linq;
@@ -46,24 +47,22 @@ namespace CChess
 
         public bool IsKilled(PieceColor color)
         {
-            var otherColor = color == PieceColor.Red ? PieceColor.Black : PieceColor.Red;
             Coord? kingCoord = GetKingSeat(color)?.Coord;
-            if(kingCoord == null)
-                return false;
-
-            int row = kingCoord.row, col = kingCoord.col;
+            Debug.Assert(kingCoord != null);
+            var otherColor = color == PieceColor.Red ? PieceColor.Black : PieceColor.Red;
             // 将帅是否对面
-            bool isKingMeet()
+            bool kingMeet()
             {
+                int col = kingCoord.col;
                 Coord? otherKingCoord = GetKingSeat(otherColor)?.Coord;
-                if(otherKingCoord == null || col != otherKingCoord.col)
+                Debug.Assert(otherKingCoord != null);
+                if(col != otherKingCoord.col)
                     return false;
 
-                int otherRow = otherKingCoord.row;
-                int lowRow = Math.Min(row, otherRow),
-                    upRow = Math.Max(row, otherRow);
-                for(int r = lowRow + 1;r < upRow;++r)
-                    if(!this[r, col].IsNull)
+                int thisRow = kingCoord.row, otherRow = otherKingCoord.row,
+                    lowRow = Math.Min(thisRow, otherRow), upRow = Math.Max(thisRow, otherRow);
+                for(int row = lowRow + 1;row < upRow;++row)
+                    if(!this[row, col].IsNull)
                         return false;
 
                 return true;
@@ -79,61 +78,56 @@ namespace CChess
                 return false;
             }
 
-            return isKingMeet() || isKilled();
+            return kingMeet() || isKilled();
         }
         public bool IsFailed(PieceColor color)
         {
             foreach(var piece in LivePieces(color))
-                if(CanMoveCoord(piece.Seat?.Coord).Count > 0)
+                if(CanMoveCoord(piece.Seat?.Coord ?? new Coord(0)).Count > 0)
                     return false;
 
             return true;
         }
-        public Dictionary<Coord, List<Coord>> CanMoveCoord(PieceColor color, bool filterZero = false)
+        public List<(Coord, List<Coord>)> CanMoveCoord(PieceColor color, bool filterZero = false)
         {
-            Dictionary<Coord, List<Coord>> fromCoordToCoords = new();
+            List<(Coord, List<Coord>)> fromCoordToCoords = new();
             foreach(var piece in LivePieces(color))
             {
-                var fromCoord = piece.Seat?.Coord;
-                if(fromCoord == null)
-                    continue;
-
+                Coord fromCoord = piece.Seat?.Coord ?? new Coord(0);
                 var coords = CanMoveCoord(fromCoord);
                 if(coords.Count > 0 || !filterZero)
-                    fromCoordToCoords[fromCoord] = coords;
+                    fromCoordToCoords.Add((fromCoord, coords));
             }
 
             return fromCoordToCoords;
         }
 
         // 可移动位置, 排除将帅对面、被将军的位置
-        public List<Coord> CanMoveCoord(Coord? fromCoord)
+        public List<Coord> CanMoveCoord(Coord fromCoord)
         {
-            if(fromCoord == null)
-                return new();
-
-            var fromSeat = this[fromCoord];
-            if(fromSeat == null || fromSeat.IsNull)
-                return new();
-
-            var color = fromSeat.Piece.Color;
-            List<Coord> coords = fromSeat.Piece.MoveCoord(this);
-            coords.RemoveAll(toCoord =>
-            {
-                Seat toSeat = this[toCoord];
-                Piece toPiece = toSeat.Piece;
-                // 如是对方将帅的位置则直接可走，不用判断是否被将军（因为判断是否被将军，会直接走棋吃子）
-                if(toPiece.Kind == PieceKind.King)
-                    return false;
-
-                fromSeat.MoveTo(toSeat, Piece.NullPiece);
-                bool killed = IsKilled(color);
-                toSeat.MoveTo(fromSeat, toPiece);
-                return killed;
-            });
-
+            List<Coord> coords = this[fromCoord].Piece.MoveCoord(this);
+            coords.RemoveAll(toCoord => !CanMove(fromCoord, toCoord));
             return coords;
         }
+
+        public bool CanMove(Coord fromCoord, Coord toCoord)
+        {
+            Seat fromSeat = this[fromCoord];
+            Debug.Assert(!fromSeat.IsNull);
+
+            var color = fromSeat.Piece.Color;
+            Seat toSeat = this[toCoord];
+            Piece toPiece = toSeat.Piece;
+            // 如是对方将帅的位置则直接可走，不用判断是否被将军（如加以判断，则会直接走棋吃将帅）
+            if(toPiece.Kind == PieceKind.King)
+                return true;
+
+            fromSeat.MoveTo(toSeat, Piece.NullPiece);
+            bool killed = IsKilled(color);
+            toSeat.MoveTo(fromSeat, toPiece);
+            return !killed;
+        }
+
         public void Reset()
         {
             foreach(var seat in _seats)
@@ -232,8 +226,7 @@ namespace CChess
             string zhStr = "";
             Seat fromSeat = this[coordPair.FromCoord],
                 toSeat = this[coordPair.ToCoord];
-            if(fromSeat.IsNull)
-                return zhStr;
+            Debug.Assert(!fromSeat.IsNull);
 
             Piece fromPiece = fromSeat.Piece;
             PieceColor color = fromPiece.Color;
@@ -382,12 +375,11 @@ namespace CChess
             int total = 0;
             foreach(var color in new List<PieceColor>() { PieceColor.Red, PieceColor.Black })
             {
-                var fromCoordToCoords = CanMoveCoord(color);
-                foreach(var coordToCoords in fromCoordToCoords)
+                foreach(var (fromCoord, toCoords) in CanMoveCoord(color))
                 {
-                    result += this[coordToCoords.Key].Piece.ToString() + " CanMoveCoord: ";
-                    int count = coordToCoords.Value.Count;
-                    foreach(var coord in coordToCoords.Value)
+                    result += this[fromCoord ?? new(0)].Piece.ToString() + " CanMoveCoord: ";
+                    int count = toCoords.Count;
+                    foreach(var coord in toCoords)
                         result += coord.ToString();
 
                     result += String.Format($"【{count}】\n", count);
@@ -458,41 +450,27 @@ namespace CChess
             return preStr[index] + textBlankBoard.ToString() + sufStr[index];
         }
 
+        private static IEnumerable<Piece> LivePieces(Piece[] pieces) => pieces.TakeWhile(piece => piece.Seat != null);
+
         private List<Piece> LivePieces(PieceColor color)
         {
-            return FilterPiece(delegate (Piece piece, PieceColor color, PieceKind kind, int col)
-            {
-                return piece.Seat != null && piece.Color == color;
-            },
-                color, PieceKind.King, 0);
+            List<Piece> pieces = new();
+            foreach(var kindPieces in _pieces[(int)color])
+                pieces.AddRange(LivePieces(kindPieces));
+
+            return pieces;
         }
         private List<Piece> LivePieces(PieceColor color, PieceKind kind)
-        {
-            return FilterPiece(delegate (Piece piece, PieceColor color, PieceKind kind, int col)
-            {
-                return piece.Seat != null && piece.Color == color && piece.Kind == kind;
-            },
-                color, kind, 0);
-        }
+            => (List<Piece>)LivePieces(_pieces[(int)color][(int)kind]);
         private List<Piece> LivePieces(PieceColor color, PieceKind kind, int col)
-        {
-            return FilterPiece(delegate (Piece piece, PieceColor color, PieceKind kind, int col)
-            {
-                return piece.Seat != null && piece.Color == color && piece.Kind == kind && piece.Seat.Coord.col == col;
-            },
-               color, kind, col);
-        }
+            => (List<Piece>)LivePieces(color, kind).TakeWhile(piece => piece.Seat?.Coord.col == col);
         private List<Piece> LivePieces_MultiColPawns(PieceColor color)
         {
             List<Piece> pawnPieces = new();
             Dictionary<int, List<Piece>> colPieces = new();
             foreach(Piece piece in LivePieces(color, PieceKind.Pawn))
             {
-                Coord? coord = piece.Seat?.Coord;
-                if(coord == null)
-                    continue;
-
-                int col = coord.col;
+                int col = piece.Seat?.Coord.col ?? 0;
                 if(!colPieces.ContainsKey(col))
                     colPieces[col] = new();
 
@@ -506,27 +484,12 @@ namespace CChess
             return pawnPieces;
         }
 
-        private delegate bool CheckPiece(Piece piece, PieceColor color, PieceKind kind, int col);
-        private List<Piece> FilterPiece(CheckPiece checkFun, PieceColor color, PieceKind kind, int col)
-        {
-            List<Piece> pieces = new();
-            foreach(var colorPieces in _pieces)
-                foreach(var kindPieces in colorPieces)
-                    foreach(var piece in kindPieces)
-                        if(checkFun(piece, color, kind, col))
-                            pieces.Add(piece);
-
-            return pieces;
-        }
-
-        private Seat? GetKingSeat(PieceColor color) =>
-            _pieces[(int)color][(int)PieceKind.King][0].Seat;
+        private Seat? GetKingSeat(PieceColor color) => _pieces[(int)color][(int)PieceKind.King][0].Seat;
 
         private bool SetBottomColor()
         {
             Seat? kingSeat = GetKingSeat(PieceColor.Red);
-            if(kingSeat == null || kingSeat.IsNull)
-                return false;
+            Debug.Assert(kingSeat != null);
 
             BottomColor = kingSeat.Coord.IsBottom ? PieceColor.Red : PieceColor.Black;
             return true;
@@ -573,6 +536,7 @@ namespace CChess
 
         private void InitSeats()
         {
+            //_ = Coord.GetAllCoord().Aggregate(this, (board, coord) => { board[coord] = new(coord); return board; });
             foreach(var coord in Coord.GetAllCoord())
                 this[coord] = new(coord);
         }

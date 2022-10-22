@@ -133,15 +133,14 @@ namespace CChess
                 _piece = value;
             }
         }
+        public bool IsNull { get { return Piece == Piece.NullPiece; } }
 
         public void MoveTo(Seat toSeat, Piece fillPiece)
         {
-            var piece = Piece;
-            Piece = fillPiece; // 首先清空this与Piece的联系
-            toSeat.Piece = piece; // 清空toSeat与ToPiece的联系
+            Piece piece = Piece;
+            Piece = fillPiece;
+            toSeat.Piece = piece;
         }
-
-        public bool IsNull { get { return Piece == Piece.NullPiece; } }
 
         private Piece _piece;
     }

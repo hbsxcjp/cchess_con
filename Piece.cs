@@ -36,6 +36,7 @@ namespace CChess
         public PieceColor Color { get; }
         abstract public PieceKind Kind { get; }
         virtual public Seat? Seat { get; set; }
+        virtual public Coord Coord { get { return Seat?.Coord ?? new Coord(0); } }
         abstract public char Char { get; }
         abstract public char Name { get; }
 
@@ -53,13 +54,13 @@ namespace CChess
         abstract public List<Coord> MoveCoord(Board board);
 
         override public string ToString()
-            => (Color == PieceColor.Red ? "红" : "黑") + PrintName() + Char + Seat?.Coord.ToString();
+            => (Color == PieceColor.Red ? "红" : "黑") + PrintName() + Char + Coord.ToString();
 
 
-        protected static void AddCoordDifColor(List<Coord> coords, Board board, Coord coord, PieceColor color)
+        protected void AddDifColorCoord(List<Coord> coords, Board board, Coord toCoord)
         {
-            if(board[coord].Piece.Color != color)
-                coords.Add(coord);
+            if(board[toCoord].Piece.Color != Color)
+                coords.Add(toCoord);
         }
 
         public static readonly Piece NullPiece = new NullPiece();
@@ -114,21 +115,16 @@ namespace CChess
         override public List<Coord> MoveCoord(Board board)
         {
             List<Coord> coords = new();
-            Coord? coord = Seat?.Coord;
-            if(coord == null)
-                return coords;
-
-            bool isBottom = coord.IsBottom;
-            int Row = coord.row,
-                Col = coord.col;
+            bool isBottom = Coord.IsBottom;
+            int Row = Coord.row, Col = Coord.col;
             if(Col > 3)
-                AddCoordDifColor(coords, board, new(Row, Col - 1), Color);
+                AddDifColorCoord(coords, board, new(Row, Col - 1));
             if(Col < 5)
-                AddCoordDifColor(coords, board, new(Row, Col + 1), Color);
+                AddDifColorCoord(coords, board, new(Row, Col + 1));
             if(Row < (isBottom ? 2 : 9))
-                AddCoordDifColor(coords, board, new(Row + 1, Col), Color);
+                AddDifColorCoord(coords, board, new(Row + 1, Col));
             if(Row > (isBottom ? 0 : 7))
-                AddCoordDifColor(coords, board, new(Row - 1, Col), Color);
+                AddDifColorCoord(coords, board, new(Row - 1, Col));
 
             return coords;
         }
@@ -170,21 +166,16 @@ namespace CChess
         override public List<Coord> MoveCoord(Board board)
         {
             List<Coord> coords = new();
-            Coord? coord = Seat?.Coord;
-            if(coord == null)
-                return coords;
-
-            bool isBottom = coord.IsBottom;
-            int Row = coord.row,
-                Col = coord.col;
+            bool isBottom = Coord.IsBottom;
+            int Row = Coord.row, Col = Coord.col;
             if(Col != 4)
-                AddCoordDifColor(coords, board, new(isBottom ? 1 : 8, 4), Color);
+                AddDifColorCoord(coords, board, new(isBottom ? 1 : 8, 4));
             else
             {
-                AddCoordDifColor(coords, board, new(Row - 1, Col - 1), Color);
-                AddCoordDifColor(coords, board, new(Row - 1, Col + 1), Color);
-                AddCoordDifColor(coords, board, new(Row + 1, Col - 1), Color);
-                AddCoordDifColor(coords, board, new(Row + 1, Col + 1), Color);
+                AddDifColorCoord(coords, board, new(Row - 1, Col - 1));
+                AddDifColorCoord(coords, board, new(Row - 1, Col + 1));
+                AddDifColorCoord(coords, board, new(Row + 1, Col - 1));
+                AddDifColorCoord(coords, board, new(Row + 1, Col + 1));
             }
 
             return coords;
@@ -228,18 +219,13 @@ namespace CChess
         override public List<Coord> MoveCoord(Board board)
         {
             List<Coord> coords = new();
-            Coord? coord = Seat?.Coord;
-            if(coord == null)
-                return coords;
-
-            bool isBottom = coord.IsBottom;
-            int Row = coord.row,
-                Col = coord.col;
+            bool isBottom = Coord.IsBottom;
+            int Row = Coord.row, Col = Coord.col;
             int maxRow = isBottom ? (Coord.RowCount - 1) / 2 : Coord.RowCount - 1;
             void AddCoord(int row, int col)
             {
                 if(board[(row + Row) / 2, (col + Col) / 2].IsNull)
-                    AddCoordDifColor(coords, board, new(row, col), Color);
+                    AddDifColorCoord(coords, board, new(row, col));
             }
 
             if(Row < maxRow)
@@ -288,12 +274,7 @@ namespace CChess
         override public List<Coord> MoveCoord(Board board)
         {
             List<Coord> coords = new();
-            Coord? coord = Seat?.Coord;
-            if(coord == null)
-                return coords;
-
-            int Row = coord.row,
-                Col = coord.col;
+            int Row = Coord.row, Col = Coord.col;
             ((int row, int col) to, (int row, int col) leg)[] allToLegRowCols =
             {
                 ((Row - 2, Col - 1), (Row - 1, Col))  ,
@@ -308,7 +289,7 @@ namespace CChess
             foreach(var (to, leg) in allToLegRowCols)
             {
                 if(Coord.IsValid(to.row, to.col) && (board[leg.row, leg.col].IsNull))
-                    AddCoordDifColor(coords, board, new(to.row, to.col), Color);
+                    AddDifColorCoord(coords, board, new(to.row, to.col));
             }
 
             return coords;
@@ -342,15 +323,10 @@ namespace CChess
         override public List<Coord> MoveCoord(Board board)
         {
             List<Coord> coords = new();
-            Coord? coord = Seat?.Coord;
-            if(coord == null)
-                return coords;
-
-            int Row = coord.row,
-                Col = coord.col;
+            int Row = Coord.row, Col = Coord.col;
             bool AddCoord(int row, int col)
             {
-                AddCoordDifColor(coords, board, new(row, col), Color);
+                AddDifColorCoord(coords, board, new(row, col));
                 return board[row, col].IsNull;
             }
 
@@ -401,12 +377,7 @@ namespace CChess
         override public List<Coord> MoveCoord(Board board)
         {
             List<Coord> coords = new();
-            Coord? coord = Seat?.Coord;
-            if(coord == null)
-                return coords;
-
-            int Row = coord.row,
-                Col = coord.col;
+            int Row = Coord.row, Col = Coord.col;
             bool skiped = false;
             bool AddCoordToBreak(int row, int col)
             {
@@ -414,13 +385,13 @@ namespace CChess
                 if(!skiped)
                 {
                     if(isNull)
-                        AddCoordDifColor(coords, board, new(row, col), Color);
+                        AddDifColorCoord(coords, board, new(row, col));
                     else
                         skiped = true;
                 }
                 else if(!isNull)
                 {
-                    AddCoordDifColor(coords, board, new(row, col), Color);
+                    AddDifColorCoord(coords, board, new(row, col));
                     return true;
                 }
 
@@ -490,27 +461,22 @@ namespace CChess
         override public List<Coord> MoveCoord(Board board)
         {
             List<Coord> coords = new();
-            Coord? coord = Seat?.Coord;
-            if(coord == null)
-                return coords;
-
-            bool isBottom = coord.IsBottom, 
+            bool isBottom = Coord.IsBottom,
                 isBottomColor = board.IsBottomColor(Color);
-            int Row = coord.row,
-                Col = coord.col;
+            int Row = Coord.row, Col = Coord.col;
             // 已过河
             if(isBottomColor != isBottom)
             {
                 if(Col > 0)
-                    AddCoordDifColor(coords, board, new(Row, Col - 1), Color);
+                    AddDifColorCoord(coords, board, new(Row, Col - 1));
                 if(Col < Coord.ColCount - 1)
-                    AddCoordDifColor(coords, board, new(Row, Col + 1), Color);
+                    AddDifColorCoord(coords, board, new(Row, Col + 1));
             }
 
             if(isBottomColor && Row < Coord.RowCount - 1)
-                AddCoordDifColor(coords, board, new(Row + 1, Col), Color);
+                AddDifColorCoord(coords, board, new(Row + 1, Col));
             else if(!isBottomColor && Row > 0)
-                AddCoordDifColor(coords, board, new(Row - 1, Col), Color);
+                AddDifColorCoord(coords, board, new(Row - 1, Col));
 
             return coords;
         }
@@ -537,9 +503,6 @@ namespace CChess
 
         public override Seat? Seat { get { return null; } }
 
-        override public List<Coord> MoveCoord(Board board)
-        {
-            return new();
-        }
+        override public List<Coord> MoveCoord(Board board) => new();
     }
 }

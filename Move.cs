@@ -54,8 +54,9 @@ namespace CChess
 
         public void Done(Board board)
         {
-            var toSeat = board[CoordPair.ToCoord];
+            Seat toSeat = board[CoordPair.ToCoord];
             ToPiece = toSeat.Piece;
+
             board[CoordPair.FromCoord].MoveTo(toSeat, Piece.NullPiece);
         }
         public void Undo(Board board)
@@ -102,7 +103,7 @@ namespace CChess
         public void ClearAfterMovesError(ManualMove manualMove)
         {
             if(_afterMoves != null)
-                _afterMoves.RemoveAll(move => !manualMove.GetCurMoveAccept(move.CoordPair));
+                _afterMoves.RemoveAll(move => !manualMove.AcceptCoordPair(move.CoordPair));
         }
 
         override public string ToString()
