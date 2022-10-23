@@ -127,20 +127,33 @@ namespace CChess
             get { return _piece; }
             set
             {
-                _piece.Seat = null;
+                _piece.Seat = NullSeat;
 
                 value.Seat = this;
                 _piece = value;
             }
         }
-        public bool IsNull { get { return Piece == Piece.NullPiece; } }
+        public bool IsNull { get { return this == NullSeat; } }
+        public bool HasNullPiece { get { return Piece == Piece.NullPiece; } }
 
-        public void MoveTo(Seat toSeat, Piece fillPiece)
+        public void MoveTo(Seat toSeat, Piece fromPiece)
         {
             Piece piece = Piece;
-            Piece = fillPiece;
+            Piece = fromPiece;
             toSeat.Piece = piece;
         }
+
+        public static Seat[,] CreatSeats()
+        {
+            var seats = new Seat[Coord.RowCount, Coord.ColCount];
+            foreach(var coord in Coord.GetAllCoord())
+                seats[coord.row, coord.col] = new(coord);
+
+            return seats;
+        }
+        public override string ToString() => string.Format($"{Coord}:{_piece}");
+
+        public static readonly Seat NullSeat = new(new(-1, -1));
 
         private Piece _piece;
     }

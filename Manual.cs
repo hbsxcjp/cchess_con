@@ -408,7 +408,8 @@ namespace CChess
             _rootMove = Move.CreateRootMove();
             CurMove = _rootMove;
             EnumMoveDone = false;
-            PGNType = PGNType.Data;
+            //PGNType = PGNType.Data; 
+            PGNType = PGNType.Zh; 
         }
 
         public Move CurMove { get; set; }
@@ -554,7 +555,7 @@ namespace CChess
             List<Move> allMoves = new() { _rootMove };
             string pgnPattern = (PGNType == PGNType.Iccs
                 ? @"(?:[a-i]\d){2}"
-                : (PGNType == PGNType.Data ? @"\d{4}" : "[" + Board.PGNZHChars() + @"]{4}"));
+                : (PGNType == PGNType.Data ? @"\d{4}" : "[" + Piece.PGNZHChars() + @"]{4}"));
             string movePattern = @"(\d+)\.(" + pgnPattern + @")(_?)" + remarkPattern + @"?\s+";
             var matches = Regex.Matches(movesText, movePattern);
             foreach(Match match in matches.Cast<Match>())

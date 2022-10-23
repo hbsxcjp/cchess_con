@@ -30,13 +30,13 @@ namespace CChess
         public Piece(PieceColor color)
         {
             Color = color;
-            Seat = null;
+            Seat = Seat.NullSeat;
         }
 
         public PieceColor Color { get; }
         abstract public PieceKind Kind { get; }
-        virtual public Seat? Seat { get; set; }
-        virtual public Coord Coord { get { return Seat?.Coord ?? new Coord(0); } }
+        virtual public Seat Seat { get; set; }
+        virtual public Coord Coord { get { return Seat.Coord; } }
         abstract public char Char { get; }
         abstract public char Name { get; }
 
@@ -52,18 +52,81 @@ namespace CChess
 
         // 可移动位置, 排除规则不允许行走的位置、排除同色的位置
         abstract public List<Coord> MoveCoord(Board board);
-
-        override public string ToString()
-            => (Color == PieceColor.Red ? "红" : "黑") + PrintName() + Char + Coord.ToString();
-
-
-        protected void AddDifColorCoord(List<Coord> coords, Board board, Coord toCoord)
+        public static Piece[][][] CreatPieces()
         {
-            if(board[toCoord].Piece.Color != Color)
-                coords.Add(toCoord);
+            static Piece[] getKindPieces(PieceColor color, Type type, int num)
+            {
+                var kindPieces = new Piece[num];
+                var constructorInfo = type.GetConstructor(new Type[] { typeof(PieceColor) });
+                if(constructorInfo != null)
+                {
+                    for(int i = 0;i < num;i++)
+                        kindPieces[i] = (Piece)constructorInfo.Invoke(new object[] { color });
+                }
+
+                return kindPieces;
+            }
+
+            static Piece[][] getColorPieces(PieceColor color)
+            {
+                Type[] pieceType =
+                {
+                    typeof(King),
+                    typeof(Advisor),
+                    typeof(Bishop),
+                    typeof(Knight),
+                    typeof(Rook),
+                    typeof(Cannon),
+                    typeof(Pawn)
+                };
+                int[] KindNums = { 1, 2, 2, 2, 2, 2, 5 };
+                Piece[][] pieces = new Piece[KindNum][];
+                for(int k = 0;k < KindNum;k++)
+                    pieces[k] = getKindPieces(color, pieceType[k], KindNums[k]);
+
+                return pieces;
+            }
+
+            var pieces = new Piece[ColorNum][][];
+            for(int c = 0;c < ColorNum;c++)
+                pieces[c] = getColorPieces((PieceColor)c);
+
+            return pieces;
+        }
+        override public string ToString()
+            => (Color == PieceColor.Red ? "红" : (Color == PieceColor.Black ? "黑" : "无"))
+            + PrintName() + Char + Coord.ToString();
+
+        protected void AddDifColorCoord(List<Coord> coords, Board board, int row, int col)
+        {
+            Seat seat = board[row, col];
+            if(seat.Piece.Color != Color)
+                coords.Add(seat.Coord);
         }
 
+        public static int GetColorIndex(char ch) => char.IsUpper(ch) ? 0 : 1;
+        public static int GetKindIndex(char ch) => ("KABNRCPkabnrcp".IndexOf(ch)) % KindNum;
+        public static PieceKind GetKind_name(char name) => (PieceKind)(NameChars.IndexOf(name) % KindNum);
+        public static bool IsLinePiece(PieceKind kind)
+            => (kind == PieceKind.King || kind == PieceKind.Rook || kind == PieceKind.Cannon || kind == PieceKind.Pawn);
+        public static char GetColChar(PieceColor color, int col) => NumChars[(int)color][col];
+        public static int GetCol(PieceColor color, char colChar) => NumChars[(int)color].IndexOf(colChar);
+        public static PieceColor GetColor(char numChar) => NumChars[0].Contains(numChar) ? PieceColor.Red : PieceColor.Black;
+        public static string PreChars(int count) => (count == 2 ? "前后" : (count == 3 ? PositionChars : "一二三四五"));
+        public static char MoveChar(bool isSameRow, bool isGo) => MoveChars[isSameRow ? 1 : (isGo ? 2 : 0)];
+        public static int MoveDir(char movCh) => MoveChars.IndexOf(movCh) - 1;
+        public static string PGNZHChars() => NameChars + NumChars[0] + NumChars[1] + PositionChars + MoveChars;
+
         public static readonly Piece NullPiece = new NullPiece();
+        public const char FENSplitChar = '/';
+
+        private const string NameChars = "帅仕相马车炮兵将士象马车炮卒";
+        private static readonly string[] NumChars = { "一二三四五六七八九", "１２３４５６７８９" };
+        private const string PositionChars = "前中后";
+        private const string MoveChars = "退平进";
+
+        private const int ColorNum = 2;
+        private const int KindNum = 7;
     }
 
     internal class PieceComparer: IComparer<Piece>
@@ -71,9 +134,8 @@ namespace CChess
         public PieceComparer(bool isBottomColor) { _isBottomColor = isBottomColor; }
         public int Compare(Piece? x, Piece? y)
         {
-            Seat? xseat = x?.Seat, yseat = y?.Seat;
-            if(xseat != null && yseat != null)
-                return new CoordComparer(_isBottomColor).Compare(xseat.Coord, yseat.Coord);
+            if(x != null && y != null)
+                return new CoordComparer(_isBottomColor).Compare(x.Coord, y.Coord);
 
             return 0;
         }
@@ -118,13 +180,13 @@ namespace CChess
             bool isBottom = Coord.IsBottom;
             int Row = Coord.row, Col = Coord.col;
             if(Col > 3)
-                AddDifColorCoord(coords, board, new(Row, Col - 1));
+                AddDifColorCoord(coords, board, Row, Col - 1);
             if(Col < 5)
-                AddDifColorCoord(coords, board, new(Row, Col + 1));
+                AddDifColorCoord(coords, board, Row, Col + 1);
             if(Row < (isBottom ? 2 : 9))
-                AddDifColorCoord(coords, board, new(Row + 1, Col));
+                AddDifColorCoord(coords, board, Row + 1, Col);
             if(Row > (isBottom ? 0 : 7))
-                AddDifColorCoord(coords, board, new(Row - 1, Col));
+                AddDifColorCoord(coords, board, Row - 1, Col);
 
             return coords;
         }
@@ -169,13 +231,13 @@ namespace CChess
             bool isBottom = Coord.IsBottom;
             int Row = Coord.row, Col = Coord.col;
             if(Col != 4)
-                AddDifColorCoord(coords, board, new(isBottom ? 1 : 8, 4));
+                AddDifColorCoord(coords, board, isBottom ? 1 : 8, 4);
             else
             {
-                AddDifColorCoord(coords, board, new(Row - 1, Col - 1));
-                AddDifColorCoord(coords, board, new(Row - 1, Col + 1));
-                AddDifColorCoord(coords, board, new(Row + 1, Col - 1));
-                AddDifColorCoord(coords, board, new(Row + 1, Col + 1));
+                AddDifColorCoord(coords, board, Row - 1, Col - 1);
+                AddDifColorCoord(coords, board, Row - 1, Col + 1);
+                AddDifColorCoord(coords, board, Row + 1, Col - 1);
+                AddDifColorCoord(coords, board, Row + 1, Col + 1);
             }
 
             return coords;
@@ -224,8 +286,8 @@ namespace CChess
             int maxRow = isBottom ? (Coord.RowCount - 1) / 2 : Coord.RowCount - 1;
             void AddCoord(int row, int col)
             {
-                if(board[(row + Row) / 2, (col + Col) / 2].IsNull)
-                    AddDifColorCoord(coords, board, new(row, col));
+                if(board[(row + Row) / 2, (col + Col) / 2].HasNullPiece)
+                    AddDifColorCoord(coords, board, row, col);
             }
 
             if(Row < maxRow)
@@ -288,8 +350,8 @@ namespace CChess
             };
             foreach(var (to, leg) in allToLegRowCols)
             {
-                if(Coord.IsValid(to.row, to.col) && (board[leg.row, leg.col].IsNull))
-                    AddDifColorCoord(coords, board, new(to.row, to.col));
+                if(Coord.IsValid(to.row, to.col) && (board[leg.row, leg.col].HasNullPiece))
+                    AddDifColorCoord(coords, board, to.row, to.col);
             }
 
             return coords;
@@ -326,8 +388,8 @@ namespace CChess
             int Row = Coord.row, Col = Coord.col;
             bool AddCoord(int row, int col)
             {
-                AddDifColorCoord(coords, board, new(row, col));
-                return board[row, col].IsNull;
+                AddDifColorCoord(coords, board, row, col);
+                return board[row, col].HasNullPiece;
             }
 
             for(int r = Row - 1;r >= 0;--r)
@@ -381,17 +443,17 @@ namespace CChess
             bool skiped = false;
             bool AddCoordToBreak(int row, int col)
             {
-                bool isNull = board[row, col].IsNull;
+                bool isNull = board[row, col].HasNullPiece;
                 if(!skiped)
                 {
                     if(isNull)
-                        AddDifColorCoord(coords, board, new(row, col));
+                        AddDifColorCoord(coords, board, row, col);
                     else
                         skiped = true;
                 }
                 else if(!isNull)
                 {
-                    AddDifColorCoord(coords, board, new(row, col));
+                    AddDifColorCoord(coords, board, row, col);
                     return true;
                 }
 
@@ -468,15 +530,15 @@ namespace CChess
             if(isBottomColor != isBottom)
             {
                 if(Col > 0)
-                    AddDifColorCoord(coords, board, new(Row, Col - 1));
+                    AddDifColorCoord(coords, board, Row, Col - 1);
                 if(Col < Coord.ColCount - 1)
-                    AddDifColorCoord(coords, board, new(Row, Col + 1));
+                    AddDifColorCoord(coords, board, Row, Col + 1);
             }
 
             if(isBottomColor && Row < Coord.RowCount - 1)
-                AddDifColorCoord(coords, board, new(Row + 1, Col));
+                AddDifColorCoord(coords, board, Row + 1, Col);
             else if(!isBottomColor && Row > 0)
-                AddDifColorCoord(coords, board, new(Row - 1, Col));
+                AddDifColorCoord(coords, board, Row - 1, Col);
 
             return coords;
         }
@@ -498,10 +560,8 @@ namespace CChess
 
         override public char Name
         {
-            get { return '　'; }
+            get { return '空'; }
         }
-
-        public override Seat? Seat { get { return null; } }
 
         override public List<Coord> MoveCoord(Board board) => new();
     }
