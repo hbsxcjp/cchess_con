@@ -65,26 +65,7 @@ namespace CChess
             return LivePieces(otherColor).Any(piece => piece.MoveCoord(this).Contains(kingCoord));
         }
         public bool IsFailed(PieceColor color)
-        {
-            foreach(var piece in LivePieces(color))
-                if(CanMoveCoord(piece.Coord).Count > 0)
-                    return false;
-
-            return true;
-        }
-        public List<(Coord, List<Coord>)> CanMoveCoord(PieceColor color, bool filterZero = false)
-        {
-            List<(Coord, List<Coord>)> fromCoordToCoords = new();
-            foreach(var piece in LivePieces(color))
-            {
-                Coord fromCoord = piece.Coord;
-                var coords = CanMoveCoord(fromCoord);
-                if(coords.Count > 0 || !filterZero)
-                    fromCoordToCoords.Add((fromCoord, coords));
-            }
-
-            return fromCoordToCoords;
-        }
+            => LivePieces(color).All(piece => CanMoveCoord(piece.Coord).Count == 0);
 
         // 可移动位置, 排除将帅对面、被将军的位置
         public List<Coord> CanMoveCoord(Coord fromCoord)
@@ -239,9 +220,10 @@ namespace CChess
             }
 
             char movChar = Piece.MoveChar(isSameRow, isBottomColor == toRow > fromRow);
-            char toNumColChar = !isSameRow && Piece.IsLinePiece(kind)
-                ? Piece.GetColChar(color, Math.Abs(fromRow - toRow) - 1)
-                : Piece.GetColChar(color, Coord.GetCol(toCol, isBottomColor));
+            int numOrCol = !isSameRow && Piece.IsLinePiece(kind)
+                ? Math.Abs(fromRow - toRow) - 1
+                : Coord.GetCol(toCol, isBottomColor);
+            char toNumColChar = Piece.GetColChar(color, numOrCol);
             zhStr += string.Format($"{movChar}{toNumColChar}");
 
 #if DEBUG
@@ -255,30 +237,27 @@ namespace CChess
         }
         public CoordPair GetCoordPair(string zhStr)
         {
-            if(zhStr.Length != 4)
-                return new(0);
-
+            Debug.Assert(zhStr.Length == 4);
             PieceColor color = Piece.GetColor(zhStr[3]);
             bool isBottomColor = IsBottomColor(color);
             int index = 0, movDir = Piece.MoveDir(zhStr[2]),
                 absMovDir = movDir * (isBottomColor ? 1 : -1);
 
             List<Piece> pieces;
-            PieceKind kind = Piece.GetKind_name(zhStr[0]);
+            PieceKind kind = Piece.GetKind(zhStr[0]);
             if(kind != PieceKind.NoKind)
             {   // 首字符为棋子名
                 int col = Coord.GetCol(Piece.GetCol(color, zhStr[1]), isBottomColor);
                 pieces = LivePieces(color, kind, col);
                 Debug.Assert(pieces.Count > 0);
 
-                // (kind == PieceKind.Advisor || kind == PieceKind.Bishop):
                 // 士、象同列时不分前后，以进、退区分棋子。移动方向为退时，修正index
                 if(pieces.Count == 2)
                     index = (movDir == 1) ? 1 : 0;
             }
             else
             {
-                kind = Piece.GetKind_name(zhStr[1]);
+                kind = Piece.GetKind(zhStr[1]);
                 pieces = kind == PieceKind.Pawn ? LivePieces_MultiColPawns(color) : LivePieces(color, kind);
                 Debug.Assert(pieces.Count > 1);
 
@@ -307,60 +286,21 @@ namespace CChess
                 toRow += absMovDir * rowInc;
             }
 
-            return new(fromCoord, new(toRow, toCol));
-        }
-
-        public string PutCoordString()
-        {
-            string result = "";
-            foreach(var colorPieces in _pieces)
-            {
-                foreach(var kindPieces in colorPieces)
-                {
-                    foreach(var piece in kindPieces)
-                        result += piece.ToString() + " PutCoord: " 
-                            + Utility.GetString(piece.PutCoord(IsBottomColor(piece.Color))) + "\n";
-
-                    result += '\n';
-                }
-
-                result += '\n';
-            }
-
-            return result;
-        }
-        public string CanMoveCoordString()
-        {
-            string result = "";
-            int total = 0;
-            foreach(var color in new List<PieceColor>() { PieceColor.Red, PieceColor.Black })
-            {
-                foreach(var (fromCoord, toCoords) in CanMoveCoord(color))
-                {
-                    result += this[fromCoord].Piece.ToString() + " CanMoveCoord: ";
-                    int count = toCoords.Count;
-                    foreach(var coord in toCoords)
-                        result += coord.ToString();
-
-                    result += String.Format($"【{count}】\n", count);
-                    total += count;
-                }
-            }
-
-            return result + String.Format($"总计：【{total}】\n", total);
+            return new(fromCoord, this[toRow, toCol].Coord);
         }
 
         public override string ToString()
         {
             // 棋盘上边标识字符串
-            string[] preStr =
-            {
-                @"　　　　　　　黑　方　　　　　　　
-１　２　３　４　５　６　７　８　９
-",
-                @"　　　　　　　红　方　　　　　　　
-一　二　三　四　五　六　七　八　九
-"
+            string[] preStr = {
+                "　　　　　　　黑　方　　　　　　　\n１　２　３　４　５　６　７　８　９\n",
+                "　　　　　　　红　方　　　　　　　\n一　二　三　四　五　六　七　八　九\n"
+            };
+
+            // 棋盘下边标识字符串
+            string[] sufStr = {
+                "九　八　七　六　五　四　三　二　一\n　　　　　　　红　方　　　　　　　\n",
+                "９　８　７　６　５　４　３　２　１\n　　　　　　　黑　方　　　　　　　\n"
             };
 
             // 文本空棋盘
@@ -389,17 +329,6 @@ namespace CChess
                 );
             // 边框粗线
 
-            // 棋盘下边标识字符串
-            string[] sufStr =
-            {
-                @"九　八　七　六　五　四　三　二　一
-　　　　　　　红　方　　　　　　　
-",
-                @"９　８　７　６　５　４　３　２　１
-　　　　　　　黑　方　　　　　　　
-"
-            };
-
             foreach(var seat in _seats)
                 if(!seat.HasNullPiece)
                     textBlankBoard[Coord.GetDoubleIndex(seat.Coord)] = seat.Piece.PrintName();
@@ -408,21 +337,20 @@ namespace CChess
             return preStr[index] + textBlankBoard.ToString() + sufStr[index];
         }
 
-        private static IEnumerable<Piece> LivePieces(Piece[] pieces)
-            => pieces.TakeWhile(piece => !piece.Seat.IsNull);
-
-        private List<Piece> LivePieces(PieceColor color)
+        public List<Piece> Pieces(PieceColor color)
         {
             List<Piece> pieces = new();
             foreach(var kindPieces in _pieces[(int)color])
-                pieces.AddRange(LivePieces(kindPieces));
+                pieces.AddRange(kindPieces);
 
             return pieces;
         }
+        public List<Piece> LivePieces(PieceColor color) => LivePieces(Pieces(color));
+
         private List<Piece> LivePieces(PieceColor color, PieceKind kind)
-            => LivePieces(_pieces[(int)color][(int)kind]).ToList();
+            => LivePieces(_pieces[(int)color][(int)kind]);
         private List<Piece> LivePieces(PieceColor color, PieceKind kind, int col)
-            => LivePieces(color, kind).TakeWhile(piece => piece.Coord.col == col).ToList();
+            => LivePieces(color, kind).Where(piece => piece.Coord.col == col).ToList();
         private List<Piece> LivePieces_MultiColPawns(PieceColor color)
         {
             List<Piece> pawnPieces = new();
@@ -442,6 +370,9 @@ namespace CChess
 
             return pawnPieces;
         }
+
+        private static List<Piece> LivePieces(IEnumerable<Piece> pieces)
+            => pieces.Where(piece => !piece.Seat.IsNull).ToList();
 
         private Seat GetKingSeat(PieceColor color) => _pieces[(int)color][(int)PieceKind.King][0].Seat;
 

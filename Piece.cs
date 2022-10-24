@@ -106,7 +106,7 @@ namespace CChess
 
         public static int GetColorIndex(char ch) => char.IsUpper(ch) ? 0 : 1;
         public static int GetKindIndex(char ch) => ("KABNRCPkabnrcp".IndexOf(ch)) % KindNum;
-        public static PieceKind GetKind_name(char name) => (PieceKind)(NameChars.IndexOf(name) % KindNum);
+        public static PieceKind GetKind(char name) => (PieceKind)(NameChars.IndexOf(name) % KindNum);
         public static bool IsLinePiece(PieceKind kind)
             => (kind == PieceKind.King || kind == PieceKind.Rook || kind == PieceKind.Cannon || kind == PieceKind.Pawn);
         public static char GetColChar(PieceColor color, int col) => NumChars[(int)color][col];

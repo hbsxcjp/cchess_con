@@ -50,7 +50,7 @@ namespace CChess
             return coords;
         }
 
-        public static int GetCol(int col, bool isBottom) => isBottom ? SymmetryCol(col) : col;
+        public static int GetCol(int col, bool isBottomColor) => isBottomColor ? SymmetryCol(col) : col;
         public static int GetDoubleIndex(Coord coord) => SymmetryRow(coord.row) * 2 * (ColCount * 2) + coord.col * 2;
         public static bool IsValid(int row, int col) => row >= 0 && row < RowCount && col >= 0 && col < ColCount;
 
