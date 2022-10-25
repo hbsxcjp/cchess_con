@@ -8,14 +8,16 @@ namespace CChess
 {
     internal class Utility
     {
-
-        public static string GetString<T>(List<T> items, string split = "")
+        public delegate string Show<T>(T t);
+        public static string GetString<T>(List<T> items, Show<T> show, string split = "")
         {
             string result = "";
             foreach(T item in items)
-                result += item?.ToString() + split;
+                result += show(item) + split;
 
             return result + String.Format($"【{items.Count}】");
         }
+
+
     }
 }
