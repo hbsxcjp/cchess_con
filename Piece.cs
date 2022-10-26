@@ -45,9 +45,9 @@ namespace CChess
             return Name;
         }
 
-        virtual public List<Coord> PutCoord(bool isBottom)
+        virtual public List<Coord> PutCoord(Board board, bool isBottomColor)
         {
-            return Coord.GetAllCoord();
+            return Coord.GetAllRowCol().Select(rowCol => board[rowCol.Item1, rowCol.Item2].Coord).ToList();
         }
 
         // 可移动位置, 排除规则不允许行走的位置、排除同色的位置
@@ -162,14 +162,14 @@ namespace CChess
             get { return Color == PieceColor.Red ? '帅' : '将'; }
         }
 
-        override public List<Coord> PutCoord(bool isBottom)
+        override public List<Coord> PutCoord(Board board, bool isBottom)
         {
             List<Coord> coords = new();
             int minRow = isBottom ? 0 : 7,
                 maxRow = isBottom ? 2 : 9;
             for(int row = minRow;row <= maxRow;++row)
                 for(int col = 3;col <= 5;++col)
-                    coords.Add(new(row, col));
+                    coords.Add(board[row, col].Coord);
 
             return coords;
         }
@@ -211,7 +211,7 @@ namespace CChess
             get { return Color == PieceColor.Red ? '仕' : '士'; }
         }
 
-        override public List<Coord> PutCoord(bool isBottom)
+        override public List<Coord> PutCoord(Board board, bool isBottom)
         {
             List<Coord> coords = new();
             int minRow = isBottom ? 0 : 7,
@@ -219,9 +219,9 @@ namespace CChess
 
             for(int row = minRow;row <= maxRow;row += 2)
                 for(int col = 3;col <= 5;col += 2)
-                    coords.Add(new(row, col));
+                    coords.Add(board[row, col].Coord);
 
-            coords.Add(new(minRow + 1, 4));
+            coords.Add(board[minRow + 1, 4].Coord);
             return coords;
         }
 
@@ -263,7 +263,7 @@ namespace CChess
             get { return Color == PieceColor.Red ? '相' : '象'; }
         }
 
-        override public List<Coord> PutCoord(bool isBottom)
+        override public List<Coord> PutCoord(Board board, bool isBottom)
         {
             List<Coord> coords = new();
             int minRow = isBottom ? 0 : 5,
@@ -271,9 +271,9 @@ namespace CChess
                 maxRow = isBottom ? 4 : 9;
             for(int row = minRow;row <= maxRow;row += 4)
                 for(int col = 2;col < Coord.ColCount;col += 4)
-                    coords.Add(new(row, col));
+                    coords.Add(board[row, col].Coord);
             for(int col = 0;col < Coord.ColCount;col += 4)
-                coords.Add(new(midRow, col));
+                coords.Add(board[midRow, col].Coord);
 
             return coords;
         }
@@ -502,20 +502,20 @@ namespace CChess
             get { return Color == PieceColor.Red ? '兵' : '卒'; }
         }
 
-        override public List<Coord> PutCoord(bool isBottom)
+        override public List<Coord> PutCoord(Board board, bool isBottom)
         {
             List<Coord> coords = new();
             int minRow = isBottom ? 3 : 5,
                 maxRow = isBottom ? 4 : 6;
             for(int row = minRow;row <= maxRow;++row)
                 for(int col = 0;col < Coord.ColCount;col += 2)
-                    coords.Add(new(row, col));
+                    coords.Add(board[row, col].Coord);
 
             minRow = isBottom ? 5 : 0;
             maxRow = isBottom ? 9 : 4;
             for(int row = minRow;row <= maxRow;++row)
                 for(int col = 0;col < Coord.ColCount;++col)
-                    coords.Add(new(row, col));
+                    coords.Add(board[row, col].Coord);
 
             return coords;
         }

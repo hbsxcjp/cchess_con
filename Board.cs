@@ -227,7 +227,7 @@ namespace CChess
             zhStr += string.Format($"{movChar}{toNumColChar}");
 
 #if DEBUG
-            CoordPair checkCoordPair = GetCoordPair(zhStr);
+            CoordPair checkCoordPair = GetCoordPair_Zh(zhStr);
             Debug.Assert(checkCoordPair.FromCoord.row == coordPair.FromCoord.row
                 && checkCoordPair.FromCoord.col == coordPair.FromCoord.col
                 && checkCoordPair.ToCoord.row == coordPair.ToCoord.row
@@ -235,7 +235,7 @@ namespace CChess
 #endif
             return zhStr;
         }
-        public CoordPair GetCoordPair(string zhStr)
+        public CoordPair GetCoordPair_Zh(string zhStr)
         {
             Debug.Assert(zhStr.Length == 4);
             PieceColor color = Piece.GetColor(zhStr[3]);
@@ -288,6 +288,9 @@ namespace CChess
 
             return new(fromCoord, this[toRow, toCol].Coord);
         }
+
+        public CoordPair GetCoordPair_Data(ushort data) => GetCoordPair(new CoordPair(data));
+        public CoordPair GetCoordPair_Iccs(string iccs) => GetCoordPair(new CoordPair(iccs));
 
         public override string ToString()
         {
@@ -383,6 +386,11 @@ namespace CChess
 
             BottomColor = kingSeat.Coord.IsBottom ? PieceColor.Red : PieceColor.Black;
             return true;
+        }
+
+        public CoordPair GetCoordPair(CoordPair tempCoordPair)
+        {
+            return new(this[tempCoordPair.FromCoord].Coord, this[tempCoordPair.ToCoord].Coord);
         }
 
         // [Color][Kind][Index]

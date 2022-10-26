@@ -20,13 +20,6 @@ using System.Xml;
 
 namespace CChess
 {
-    internal enum PGNType
-    {
-        Zh,
-        Iccs,
-        Data
-    }
-
     internal class Manual
     {
         public Manual()
@@ -36,8 +29,9 @@ namespace CChess
 
             SetInfoValue("FEN", FEN);
         }
+        public PGNType PGNType { get { return _manualMove.PGNType; } set { _manualMove.PGNType = value; } }
 
-        public Manual(string fileName) : this()
+        public Manual(string fileName, PGNType pGNType = PGNType.Zh) : this()
         {
             switch(fileName[fileName.LastIndexOf('.')..].ToUpper())
             {
@@ -53,6 +47,7 @@ namespace CChess
                 default:
                     return;
             }
+            PGNType = pGNType;
         }
         public void Write(string fileName)
         {
@@ -265,7 +260,7 @@ namespace CChess
                 { // # 如果有注解
                     byte[] rem = new byte[2048 * 2];
                     __readBytes(rem, (int)RemarkSize);
-                    return codec.GetString(rem).Replace('\0', ' ').Trim();
+                    return codec.GetString(rem).Replace('\0', ' ').Replace("\r\n", "\n").Trim();
                 }
 
                 return null;
@@ -377,7 +372,7 @@ namespace CChess
             }
             SetBoard();
 
-            _manualMove.ReadPGN(text[(infoEndPos + 1)..]);
+            _manualMove.ReadPGN(text[infoEndPos..]);
         }
         private void WritePGN(string fileName)
         {

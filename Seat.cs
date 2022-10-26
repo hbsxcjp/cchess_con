@@ -40,12 +40,12 @@ namespace CChess
             };
         }
 
-        public static List<Coord> GetAllCoord()
+        public static List<(int, int)> GetAllRowCol()
         {
-            List<Coord> coords = new(RowCount * ColCount);
+            List<(int, int)> coords = new(RowCount * ColCount);
             for(int row = 0;row < RowCount;row++)
                 for(int col = 0;col < ColCount;col++)
-                    coords.Add(new(row, col));
+                    coords.Add((row, col));
 
             return coords;
         }
@@ -115,9 +115,9 @@ namespace CChess
 
     internal class Seat
     {
-        public Seat(Coord coord)
+        public Seat(int row, int col)
         {
-            Coord = coord;
+            Coord = new(row, col);
             _piece = Piece.NullPiece;
         }
 
@@ -146,14 +146,14 @@ namespace CChess
         public static Seat[,] CreatSeats()
         {
             var seats = new Seat[Coord.RowCount, Coord.ColCount];
-            foreach(var coord in Coord.GetAllCoord())
-                seats[coord.row, coord.col] = new(coord);
+            foreach(var (row, col) in Coord.GetAllRowCol())
+                seats[row, col] = new(row, col);
 
             return seats;
         }
         public override string ToString() => string.Format($"{Coord}:{_piece}");
 
-        public static readonly Seat NullSeat = new(new(-1, -1));
+        public static readonly Seat NullSeat = new(-1, -1);
 
         private Piece _piece;
     }

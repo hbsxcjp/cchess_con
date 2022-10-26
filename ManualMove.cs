@@ -10,6 +10,13 @@ using System.Threading.Tasks;
 
 namespace CChess
 {
+    internal enum PGNType
+    {
+        Zh,
+        Iccs,
+        Data
+    }
+
     internal class ManualMove: IEnumerable
     {
         public ManualMove()
@@ -27,14 +34,14 @@ namespace CChess
         public PGNType PGNType { get; set; }
         public bool EnumMoveDone { get; set; }
 
-        public List<Coord> GetCanPutCoords(Piece piece) => piece.PutCoord(_board.IsBottomColor(piece.Color));
+        public List<Coord> GetCanPutCoords(Piece piece) => piece.PutCoord(_board, _board.IsBottomColor(piece.Color));
         public List<Coord> GetCanMoveCoords(Coord fromCoord) => _board.CanMoveCoord(fromCoord);
         public bool AcceptCoordPair(CoordPair coordPair)
             => _board.CanMoveCoord(coordPair.FromCoord).Contains(coordPair.ToCoord);
         public bool SetBoard(string fen) => _board.SetFEN(fen.Split(' ')[0]);
         public void AddMove(CoordPair coordPair, string? remark, bool visible)
             => GoMove(CurMove.AddAfterMove(coordPair, remark, visible));
-        public CoordPair GetCoordPair(int frow, int fcol, int trow, int tcol)
+        public CoordPair GetCoordPair(int frow, int fcol, int trow, int tcol) 
             => new(_board[frow, fcol].Coord, _board[trow, tcol].Coord);
 
         public bool Go() // 前进
@@ -123,7 +130,7 @@ namespace CChess
                 for(int i = 0;i < afterNum;++i)
                 {
                     bool visible = reader.ReadBoolean();
-                    CoordPair coordPair = new(reader.ReadUInt16());
+                    CoordPair coordPair = _board.GetCoordPair_Data(reader.ReadUInt16());
                     var remarkAfterNum = readRemarkAfterNum(reader);
 
                     var move = beforeMove.AddAfterMove(coordPair, remarkAfterNum.remark, visible);
@@ -155,9 +162,9 @@ namespace CChess
         public void ReadPGN(string movesText)
         {
             string remarkPattern = @"(?:{([\s\S]+?)})";
-            var remarkMatch = Regex.Match(movesText, "^" + remarkPattern);
+            var remarkMatch = Regex.Match(movesText, "^\n\n" + remarkPattern);
             if(remarkMatch.Success)
-                _rootMove.Remark = remarkMatch.Value;
+                _rootMove.Remark = remarkMatch.Groups[1].Value;
 
             List<Move> allMoves = new() { _rootMove };
             string pgnPattern = (PGNType == PGNType.Iccs
@@ -270,22 +277,22 @@ namespace CChess
         private void GoMove(Move move) => (CurMove = move).Done(_board);
         private ChangeType GetChangeType() => _board.IsBottomColor(PieceColor.Red) ? ChangeType.NoChange : ChangeType.Exchange;
 
-        private string GetPGNText(CoordPair coordPair, PGNType pgn)
-        {
-            if(pgn == PGNType.Iccs)
-                return coordPair.ICCS;
-            else if(pgn == PGNType.Data)
-                return coordPair.DataText;
-            //(pgn == PGNType.Zh)
-            return _board.GetZhStr(coordPair);
-        }
         private CoordPair GetCoordPair(string pgnText, PGNType pgn)
         {
             return pgn switch
             {
-                PGNType.Iccs => new(pgnText),
-                PGNType.Data => new(UInt16.Parse(pgnText, NumberStyles.AllowHexSpecifier)),
-                _ => _board.GetCoordPair(pgnText),
+                PGNType.Iccs => _board.GetCoordPair_Iccs(pgnText),
+                PGNType.Data => _board.GetCoordPair_Data(ushort.Parse(pgnText, NumberStyles.AllowHexSpecifier)),
+                _ => _board.GetCoordPair_Zh(pgnText),
+            };
+        }
+        private string GetPGNText(CoordPair coordPair, PGNType pgn)
+        {
+            return pgn switch
+            {
+                PGNType.Iccs => coordPair.ICCS,
+                PGNType.Data => coordPair.DataText,
+                _ => _board.GetZhStr(coordPair),
             };
         }
 
