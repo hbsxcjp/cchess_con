@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -295,7 +295,7 @@ namespace CChess
                 int frow = fcolrow % 10, fcol = fcolrow / 10, trow = tcolrow % 10,
                     tcol = tcolrow / 10;
 
-                CoordPair coordPair = new(new(frow, fcol), new(trow, tcol));
+                CoordPair coordPair = _manualMove.GetCoordPair(frow, fcol, trow, tcol);
                 bool hasNext = (tag & 0x80) != 0, hasOther = (tag & 0x40) != 0;
 
                 var curCoordPair = _manualMove.CurMove.CoordPair;

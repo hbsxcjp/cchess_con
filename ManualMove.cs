@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections;
 using System.Collections.Generic;
@@ -33,12 +33,9 @@ namespace CChess
             => _board.CanMoveCoord(coordPair.FromCoord).Contains(coordPair.ToCoord);
         public bool SetBoard(string fen) => _board.SetFEN(fen.Split(' ')[0]);
         public void AddMove(CoordPair coordPair, string? remark, bool visible)
-        {
-            //if(!CheckMove(coordPair))
-            //Console.WriteLine("Error: " + _board.ToString() + coordPair.ToString() + remark);
-
-            GoMove(CurMove.AddAfterMove(coordPair, remark, visible));
-        }
+            => GoMove(CurMove.AddAfterMove(coordPair, remark, visible));
+        public CoordPair GetCoordPair(int frow, int fcol, int trow, int tcol)
+            => new(_board[frow, fcol].Coord, _board[trow, tcol].Coord);
 
         public bool Go() // 前进
         {

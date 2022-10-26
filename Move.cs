@@ -1,4 +1,4 @@
-﻿using CChess;
+using CChess;
 using System;
 using System.Collections;
 using System.Collections.Generic;
