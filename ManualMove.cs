@@ -41,7 +41,7 @@ namespace CChess
         public bool SetBoard(string fen) => _board.SetFEN(fen.Split(' ')[0]);
         public void AddMove(CoordPair coordPair, string? remark, bool visible)
             => GoMove(CurMove.AddAfterMove(coordPair, remark, visible));
-        public CoordPair GetCoordPair(int frow, int fcol, int trow, int tcol) 
+        public CoordPair GetCoordPair(int frow, int fcol, int trow, int tcol)
             => new(_board[frow, fcol].Coord, _board[trow, tcol].Coord);
 
         public bool Go() // 前进
@@ -213,12 +213,16 @@ namespace CChess
             List<(string fen, ushort data)> aspects = new();
             var oldEnumMoveDone = EnumMoveDone;
             EnumMoveDone = true;
-            ChangeType ct = GetChangeType();
             foreach(var move in this)
-                aspects.Add((Board.GetFEN(_board.GetFEN(), ct), move.CoordPair.Data));
+                aspects.Add((AspectFEN, move.CoordPair.Data));
             EnumMoveDone = oldEnumMoveDone;
 
             return aspects;
+        }
+
+        public string AspectFEN
+        {
+            get => Board.GetFEN(_board.GetFEN(), _board.IsBottomColor(PieceColor.Red) ? ChangeType.NoChange : ChangeType.Exchange);
         }
 
         public void ClearError()
@@ -275,7 +279,6 @@ namespace CChess
         public ManualMoveEnum GetEnumerator() => new(this);
 
         private void GoMove(Move move) => (CurMove = move).Done(_board);
-        private ChangeType GetChangeType() => _board.IsBottomColor(PieceColor.Red) ? ChangeType.NoChange : ChangeType.Exchange;
 
         private CoordPair GetCoordPair(string pgnText, PGNType pgn)
         {

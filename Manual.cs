@@ -33,6 +33,7 @@ namespace CChess
 
         public Manual(string fileName, PGNType pGNType = PGNType.Zh) : this()
         {
+            PGNType = pGNType;
             switch(fileName[fileName.LastIndexOf('.')..].ToUpper())
             {
                 case ".XQF":
@@ -47,7 +48,6 @@ namespace CChess
                 default:
                     return;
             }
-            PGNType = pGNType;
         }
         public void Write(string fileName)
         {
@@ -73,7 +73,7 @@ namespace CChess
         public string InfoValue(string key) => _info[key];
         public void SetInfoValue(string key, string value) => _info[key] = value.Trim();
         public string ToString(bool showMove = false, bool isOrder = false)
-            => InfoString() + _manualMove.ToString(showMove, isOrder);
+            => Utility.GetString(_info) + _manualMove.ToString(showMove, isOrder);
 
         private void ReadXQF(string fileName)
         {
@@ -362,14 +362,7 @@ namespace CChess
             using var reader = new StreamReader(stream);
             string text = reader.ReadToEnd();
             int infoEndPos = text.IndexOf("\n\n");
-            var matches = Regex.Matches(text[..infoEndPos], @"\[(\S+) ""(.*)""\]");
-            foreach(Match match in matches.Cast<Match>())
-            {
-                //if(!match.Success)
-                //    break;
-
-                _info[match.Groups[1].Value] = match.Groups[2].Value;
-            }
+            Utility.GetInfo(_info, text[..infoEndPos]);
             SetBoard();
 
             _manualMove.ReadPGN(text[infoEndPos..]);
@@ -378,9 +371,9 @@ namespace CChess
         {
             using var stream = File.Open(fileName, FileMode.Create);
             using var writer = new StreamWriter(stream);
-            writer.Write(InfoString() + '\n' + _manualMove.WritePGN());
+            writer.Write(Utility.GetString(_info) + '\n' + _manualMove.WritePGN());
         }
-        public string InfoString() => string.Join("", _info.Select(kv => string.Format($"[{kv.Key} \"{kv.Value}\"]\n")));
+
         private bool SetBoard() => _manualMove.SetBoard(InfoValue("FEN"));
         private const string FEN = "rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR";
 

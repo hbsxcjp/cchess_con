@@ -79,11 +79,8 @@ namespace CChess
             if(!finded)
                 return null;
 
-            List<(CoordPair coordPair, List<int> valueList)> coordPairData = new();
-            foreach(var dataValue in _aspectDict[findFen])
-                coordPairData.Add((new CoordPair(dataValue.Key).GetCoordPair(findCt), dataValue.Value));
-
-            return coordPairData;
+            return _aspectDict[findFen].Select(
+                dataValue => (new CoordPair(dataValue.Key).GetCoordPair(findCt), dataValue.Value)).ToList();
         }
         override public string ToString()
         {
@@ -142,25 +139,14 @@ namespace CChess
 
         private (bool finded, ChangeType findCt, string findFen) FindCtFens(string fen)
         {
-            bool finded = false;
-            ChangeType findCt = ChangeType.NoChange;
-            string findFen = "";
-            foreach(var ct in new ChangeType[] {
-                ChangeType.NoChange,
-                ChangeType.Symmetry_H, })
-            {
-                var changeFen = Board.GetFEN(fen, ct);
-                if(_aspectDict.ContainsKey(changeFen))
-                {
-                    finded = true;
-                    findCt = ct;
-                    findFen = changeFen;
-                    if(ct != ChangeType.NoChange) Console.WriteLine($"\t\tfen: {fen}\n_aspectDict.ContainsKey: {changeFen}");
-                    break;
-                }
-            }
+            if(_aspectDict.ContainsKey(fen))
+                return (true, ChangeType.NoChange, fen);
 
-            return (finded, findCt, findFen);
+            fen = Board.GetFEN(fen, ChangeType.Symmetry_H);
+            if(_aspectDict.ContainsKey(fen))
+                return (true, ChangeType.Symmetry_H, fen);
+
+            return (false, ChangeType.NoChange, fen);
         }
 
         private readonly Dictionary<string, Dictionary<ushort, List<int>>> _aspectDict;

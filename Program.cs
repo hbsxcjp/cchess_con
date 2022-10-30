@@ -155,7 +155,7 @@ void TestManual()
 
     for(int fileIndex = 0;fileIndex < fileNames.Count;fileIndex++)
     {
-        foreach(var pgn in new List<PGNType> { PGNType.Iccs, PGNType.Zh, PGNType.Data })
+        foreach(var pgn in new List<PGNType> { PGNType.Data, PGNType.Iccs, PGNType.Zh })
         {
             for(int fromExtIndex = 0;fromExtIndex < extName.Length;fromExtIndex++)
             {
@@ -180,9 +180,7 @@ void TestAspect()
     using StreamWriter sw = File.CreateText(path);
     Aspects aspects = new();
     foreach(string fileName in fileNames)
-    {
         aspects.Add(output + fileName + extName[1]);
-    }
     //sw.Write(aspects.ToString());
 
     string spFileName = output + @"Aspects.sp";
@@ -190,6 +188,15 @@ void TestAspect()
 
     Aspects aspects1 = new(spFileName);
     sw.Write(aspects1.ToString());
+
+    Database db = new();
+    sw.WriteLine(db.ToString());
+}
+
+void TestDatabase()
+{
+    //Database db = new();
+    //Console.WriteLine(db.ToString());
 }
 
 void Test()
@@ -208,10 +215,11 @@ void Test()
     TestManual();
     TestAspect();
 
+    TestDatabase();
+
     stopWatch.Stop();
     Console.WriteLine(TimeString(stopWatch.Elapsed));
 }
-
 Test();
 
 #endif

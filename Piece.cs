@@ -59,26 +59,16 @@ namespace CChess
                 var kindPieces = new Piece[num];
                 var constructorInfo = type.GetConstructor(new Type[] { typeof(PieceColor) });
                 if(constructorInfo != null)
-                {
                     for(int i = 0;i < num;i++)
                         kindPieces[i] = (Piece)constructorInfo.Invoke(new object[] { color });
-                }
 
                 return kindPieces;
             }
 
             static Piece[][] getColorPieces(PieceColor color)
             {
-                Type[] pieceType =
-                {
-                    typeof(King),
-                    typeof(Advisor),
-                    typeof(Bishop),
-                    typeof(Knight),
-                    typeof(Rook),
-                    typeof(Cannon),
-                    typeof(Pawn)
-                };
+                Type[] pieceType = { typeof(King), typeof(Advisor), typeof(Bishop),
+                    typeof(Knight), typeof(Rook), typeof(Cannon), typeof(Pawn) };
                 int[] KindNums = { 1, 2, 2, 2, 2, 2, 5 };
                 Piece[][] pieces = new Piece[KindNum][];
                 for(int k = 0;k < KindNum;k++)
