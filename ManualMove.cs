@@ -33,6 +33,20 @@ namespace CChess
         public string? CurRemark { get { return CurMove.Remark; } set { CurMove.Remark = value?.Trim(); } }
         public PGNType PGNType { get; set; }
         public bool EnumMoveDone { get; set; }
+        public string RowCols
+        {
+            get
+            {
+                string rowCols = "";
+                var afterMoves = _rootMove.AfterMoves();
+                while(afterMoves != null)
+                {
+                    rowCols += afterMoves[0].CoordPair.RowCol;
+                    afterMoves = afterMoves[0].AfterMoves();
+                }
+                return rowCols;
+            }
+        }
 
         public List<Coord> GetCanPutCoords(Piece piece) => piece.PutCoord(_board, _board.IsBottomColor(piece.Color));
         public List<Coord> GetCanMoveCoords(Coord fromCoord) => _board.CanMoveCoord(fromCoord);
@@ -168,7 +182,7 @@ namespace CChess
 
             List<Move> allMoves = new() { _rootMove };
             string pgnPattern = (PGNType == PGNType.Iccs
-                ? @"(?:[a-i]\d){2}"
+                ? @"(?:[" + Coord.ColChars + @"]\d){2}"
                 : (PGNType == PGNType.Data ? @"\d{4}" : "[" + Piece.PGNZHChars() + @"]{4}"));
             string movePattern = @"(\d+)\-(" + pgnPattern + @")(_?)" + remarkPattern + @"?\s+";
             var matches = Regex.Matches(movesText, movePattern);

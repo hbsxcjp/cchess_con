@@ -142,9 +142,10 @@ namespace CChess
             if(_aspectDict.ContainsKey(fen))
                 return (true, ChangeType.NoChange, fen);
 
-            fen = Board.GetFEN(fen, ChangeType.Symmetry_H);
+            ChangeType ct = ChangeType.Symmetry_H;
+            fen = Board.GetFEN(fen, ct);
             if(_aspectDict.ContainsKey(fen))
-                return (true, ChangeType.Symmetry_H, fen);
+                return (true, ct, fen);
 
             return (false, ChangeType.NoChange, fen);
         }

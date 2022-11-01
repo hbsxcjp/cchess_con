@@ -24,9 +24,19 @@ namespace CChess
         public Coord(string iccs) : this(int.Parse(iccs[1].ToString()), ColChars.IndexOf(iccs[0])) { }
 
         public ushort Data { get { return (ushort)(row << 4 | col); } }
+        public string RowCol { get { return string.Format($"{row}{col}"); } }
         public string ICCS { get { return string.Format($"{ColChars[col]}{row}"); } }
         public bool IsBottom { get { return (row << 1) < RowCount; } }
 
+        public static string RowCols(string iccses)
+        {
+            StringBuilder stringBuilder = new(iccses);
+            for(int i = 0;i < stringBuilder.Length;++i)
+                if(char.IsLetter(stringBuilder[i]))
+                    stringBuilder[i] = ColChars.IndexOf(stringBuilder[i]).ToString()[0];
+
+            return stringBuilder.ToString();
+        }
         public Coord GetCoord(ChangeType ct)
         {
             return ct switch
@@ -59,7 +69,7 @@ namespace CChess
         private static int SymmetryRow(int row) => RowCount - 1 - row;
         private static int SymmetryCol(int col) => ColCount - 1 - col;
 
-        private const string ColChars = "abcdefghi";
+        public const string ColChars = "ABCDEFGHI";
 
         public const int RowCount = 10;
         public const int ColCount = 9;
@@ -106,6 +116,7 @@ namespace CChess
 
         public ushort Data { get { return (ushort)(FromCoord.Data << 8 | ToCoord.Data); } }
         public string ICCS { get { return FromCoord.ICCS + ToCoord.ICCS; } }
+        public string RowCol { get { return FromCoord.RowCol + ToCoord.RowCol; } }
         public string DataText { get { return string.Format($"{Data:X4}"); } }
 
         public CoordPair GetCoordPair(ChangeType ct) => new(FromCoord.GetCoord(ct), ToCoord.GetCoord(ct));

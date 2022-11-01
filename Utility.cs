@@ -7,13 +7,6 @@ using System.Threading.Tasks;
 
 namespace CChess
 {
-    class CustomData
-    {
-        public long CreationTime;
-        public int Name;
-        public int ThreadNum;
-    }
-
     internal class Utility
     {
         public delegate string Show<T>(T t);
