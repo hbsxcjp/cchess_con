@@ -19,18 +19,18 @@ void TestCoord()
     string result = Utility.GetString(allCoord, showCoord);
     Debug.Assert(expect == result);
 
-    // Coord.Data
-    string expectDataString = "0 1 2 3 4 5 6 7 8 16 17 18 19 20 21 22 23 24 32 33 34 35 36 37 38 39 40 48 49 50 51 52 53 54 55 56 64 65 66 67 68 69 70 71 72 80 81 82 83 84 85 86 87 88 96 97 98 99 100 101 102 103 104 112 113 114 115 116 117 118 119 120 128 129 130 131 132 133 134 135 136 144 145 146 147 148 149 150 151 152 【90】";
-    List<ushort> allData = new();
+    // Coord.RowCol
+    string expectDataString = "00 01 02 03 04 05 06 07 08 10 11 12 13 14 15 16 17 18 20 21 22 23 24 25 26 27 28 30 31 32 33 34 35 36 37 38 40 41 42 43 44 45 46 47 48 50 51 52 53 54 55 56 57 58 60 61 62 63 64 65 66 67 68 70 71 72 73 74 75 76 77 78 80 81 82 83 84 85 86 87 88 90 91 92 93 94 95 96 97 98 【90】";
+    List<string> allRowColStr = new();
     foreach(var coord in allCoord)
-        allData.Add(coord.Data);
-    result = Utility.GetString(allData, data => data.ToString(), " ");
+        allRowColStr.Add(coord.RowCol);
+    result = Utility.GetString(allRowColStr, data => data.ToString(), " ");
     Debug.Assert(expectDataString == result);
 
-    List<Coord> dataCoords = new();
-    foreach(var data in allData)
-        dataCoords.Add(new(data));
-    result = Utility.GetString(dataCoords, showCoord);
+    List<Coord> rowColCoords = new();
+    foreach(var rowCol in allRowColStr)
+        rowColCoords.Add(new(rowCol.ToArray()));
+    result = Utility.GetString(rowColCoords, showCoord);
     Debug.Assert(expect == result);
 
     // Coord.Iccs
@@ -155,7 +155,7 @@ void TestManual()
 
     for(int fileIndex = 0;fileIndex < fileNames.Count;fileIndex++)
     {
-        foreach(var pgn in new List<PGNType> { PGNType.Data, PGNType.Iccs, PGNType.Zh })
+        foreach(var pgn in new List<PGNType> { PGNType.RowCol, PGNType.Iccs, PGNType.Zh })
         {
             for(int fromExtIndex = 0;fromExtIndex < extName.Length;fromExtIndex++)
             {

@@ -13,7 +13,7 @@ namespace CChess
     {
         public static readonly string[] InfoBaseKeys = {
             "source", "title", "event", "date", "site", "black", "rowCols", "red", "eccoSn", "eccoName", "win"};
-        public static readonly string[] InfoExtendKeys = { "moveString", "opening", "writer", "author", "type", "version", "FEN" };
+        public static readonly string[] InfoExtendKeys = { "opening", "writer", "author", "type", "version", "FEN", "moveString" };
 
 
         private static void GetInfo(Dictionary<string, string> info, SqliteDataReader reader)

@@ -28,7 +28,7 @@ namespace CChess
             _afterMoves = null;
         }
 
-        public static Move CreateRootMove() { return new(new CoordPair(0)); }
+        public static Move CreateRootMove() { return new(new CoordPair(new(0, 0), new(0, 0))); }
 
         public int Id { get; set; }
         public Move? Before { get; set; }
@@ -87,7 +87,7 @@ namespace CChess
         // 后置着法列表
         public List<Move>? AfterMoves(VisibleType vtype = VisibleType.All)
         {
-            if(_afterMoves == null || vtype == VisibleType.All)
+            if(_afterMoves == null || vtype == VisibleType.All || _afterMoves.Count == 0)
                 return _afterMoves;
 
             List<Move> moves = new(_afterMoves);

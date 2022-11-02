@@ -12,9 +12,9 @@ namespace CChess
 {
     internal enum PGNType
     {
-        Zh,
+        RowCol,
         Iccs,
-        Data
+        Zh,
     }
 
     internal class ManualMove: IEnumerable
@@ -39,7 +39,7 @@ namespace CChess
             {
                 string rowCols = "";
                 var afterMoves = _rootMove.AfterMoves();
-                while(afterMoves != null)
+                while(afterMoves != null && afterMoves.Count > 0)
                 {
                     rowCols += afterMoves[0].CoordPair.RowCol;
                     afterMoves = afterMoves[0].AfterMoves();
@@ -144,7 +144,7 @@ namespace CChess
                 for(int i = 0;i < afterNum;++i)
                 {
                     bool visible = reader.ReadBoolean();
-                    CoordPair coordPair = _board.GetCoordPair_Data(reader.ReadUInt16());
+                    CoordPair coordPair = _board.GetCoordPair(reader.ReadString());
                     var remarkAfterNum = readRemarkAfterNum(reader);
 
                     var move = beforeMove.AddAfterMove(coordPair, remarkAfterNum.remark, visible);
@@ -168,7 +168,7 @@ namespace CChess
             foreach(var move in this)
             {
                 writer.Write(move.Visible);
-                writer.Write(move.CoordPair.Data);
+                writer.Write(move.CoordPair.ICCS);
                 writeRemarkAfterNum(writer, move.Remark, move.AfterNum);
             }
         }
@@ -183,7 +183,7 @@ namespace CChess
             List<Move> allMoves = new() { _rootMove };
             string pgnPattern = (PGNType == PGNType.Iccs
                 ? @"(?:[" + Coord.ColChars + @"]\d){2}"
-                : (PGNType == PGNType.Data ? @"\d{4}" : "[" + Piece.PGNZHChars() + @"]{4}"));
+                : (PGNType == PGNType.RowCol ? @"\d{4}" : "[" + Piece.PGNZHChars() + @"]{4}"));
             string movePattern = @"(\d+)\-(" + pgnPattern + @")(_?)" + remarkPattern + @"?\s+";
             var matches = Regex.Matches(movesText, movePattern);
             foreach(Match match in matches.Cast<Match>())
@@ -222,13 +222,13 @@ namespace CChess
             return result;
         }
 
-        public List<(string fen, ushort data)> GetAspects()
+        public List<(string fen, string rowCol)> GetAspects()
         {
-            List<(string fen, ushort data)> aspects = new();
+            List<(string fen, string rowCol)> aspects = new();
             var oldEnumMoveDone = EnumMoveDone;
             EnumMoveDone = true;
             foreach(var move in this)
-                aspects.Add((AspectFEN, move.CoordPair.Data));
+                aspects.Add((AspectFEN, move.CoordPair.RowCol));
             EnumMoveDone = oldEnumMoveDone;
 
             return aspects;
@@ -298,8 +298,8 @@ namespace CChess
         {
             return pgn switch
             {
-                PGNType.Iccs => _board.GetCoordPair_Iccs(pgnText),
-                PGNType.Data => _board.GetCoordPair_Data(ushort.Parse(pgnText, NumberStyles.AllowHexSpecifier)),
+                PGNType.Iccs => _board.GetCoordPair(pgnText),
+                PGNType.RowCol => _board.GetCoordPair(pgnText.ToArray()),
                 _ => _board.GetCoordPair_Zh(pgnText),
             };
         }
@@ -308,7 +308,7 @@ namespace CChess
             return pgn switch
             {
                 PGNType.Iccs => coordPair.ICCS,
-                PGNType.Data => coordPair.DataText,
+                PGNType.RowCol => coordPair.RowCol,
                 _ => _board.GetZhStr(coordPair),
             };
         }

@@ -68,7 +68,7 @@ namespace CChess
         }
 
 
-        public List<(string fen, ushort data)> GetAspects() => _manualMove.GetAspects();
+        public List<(string fen, string rowCol)> GetAspects() => _manualMove.GetAspects();
 
         public string InfoValue(string key) => _info[key];
         public void SetInfoValue(string key, string value) => _info[key] = value.Trim();

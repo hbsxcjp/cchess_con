@@ -20,13 +20,39 @@ namespace CChess
     internal class Coord
     {
         public Coord(int r, int c) { row = r; col = c; }
-        public Coord(ushort data) : this(data >> 4, data & 0X0F) { }
+        public Coord(char[] rowCol) : this(int.Parse(rowCol[0].ToString()), int.Parse(rowCol[1].ToString())) { }
         public Coord(string iccs) : this(int.Parse(iccs[1].ToString()), ColChars.IndexOf(iccs[0])) { }
 
-        public ushort Data { get { return (ushort)(row << 4 | col); } }
         public string RowCol { get { return string.Format($"{row}{col}"); } }
         public string ICCS { get { return string.Format($"{ColChars[col]}{row}"); } }
         public bool IsBottom { get { return (row << 1) < RowCount; } }
+
+        public static string GetRowCol(string rowCol, ChangeType ct)
+        {
+            int frow = int.Parse(rowCol[0].ToString()),
+                fcol = int.Parse(rowCol[1].ToString()),
+                trow = int.Parse(rowCol[2].ToString()),
+                tcol = int.Parse(rowCol[3].ToString());
+            void symmetryCol() { fcol = SymmetryCol(fcol); tcol = SymmetryCol(tcol); }
+            void symmetryRow() { frow = SymmetryRow(frow); trow = SymmetryRow(trow); }
+            switch(ct)
+            {
+                case ChangeType.Symmetry_H:
+                    symmetryCol();
+                    break;
+                case ChangeType.Symmetry_V:
+                    symmetryRow();
+                    break;
+                case ChangeType.Rotate:
+                    symmetryCol();
+                    symmetryRow();
+                    break;
+                default:
+                    break;
+            };
+
+            return string.Format($"{frow}{fcol}{trow}{tcol}");
+        }
 
         public static string RowCols(string iccses)
         {
@@ -36,18 +62,6 @@ namespace CChess
                     stringBuilder[i] = ColChars.IndexOf(stringBuilder[i]).ToString()[0];
 
             return stringBuilder.ToString();
-        }
-        public Coord GetCoord(ChangeType ct)
-        {
-            return ct switch
-            {
-                ChangeType.Symmetry_H => new(row, SymmetryCol(col)),
-                ChangeType.Symmetry_V => new(SymmetryRow(row), col),
-                ChangeType.Rotate => new(SymmetryRow(row), SymmetryCol(col)),
-                ChangeType.Exchange => this,
-                ChangeType.NoChange => this,
-                _ => this,
-            };
         }
 
         public static List<(int, int)> GetAllRowCol()
@@ -104,22 +118,14 @@ namespace CChess
             FromCoord = fromCoord;
             ToCoord = toCoord;
         }
-        public CoordPair(ushort data) : this(new((ushort)(data >> 8)), new((ushort)(data & 0XFF)))
-        {
-        }
-        public CoordPair(string iccs) : this(new(iccs[..2]), new(iccs[2..]))
-        {
-        }
+        public CoordPair(char[] rowCol) : this(new(rowCol[..2]), new(rowCol[2..])) { }
+        public CoordPair(string iccs) : this(new(iccs[..2]), new(iccs[2..])) { }
 
         public Coord FromCoord { get; }
         public Coord ToCoord { get; }
 
-        public ushort Data { get { return (ushort)(FromCoord.Data << 8 | ToCoord.Data); } }
+        public string RowCol { get { return string.Format($"{FromCoord.RowCol}{ToCoord.RowCol}"); } }
         public string ICCS { get { return FromCoord.ICCS + ToCoord.ICCS; } }
-        public string RowCol { get { return FromCoord.RowCol + ToCoord.RowCol; } }
-        public string DataText { get { return string.Format($"{Data:X4}"); } }
-
-        public CoordPair GetCoordPair(ChangeType ct) => new(FromCoord.GetCoord(ct), ToCoord.GetCoord(ct));
 
         public override string ToString() => string.Format($"[{FromCoord},{ToCoord}]");
     }

@@ -289,8 +289,8 @@ namespace CChess
             return new(fromCoord, this[toRow, toCol].Coord);
         }
 
-        public CoordPair GetCoordPair_Data(ushort data) => GetCoordPair(new CoordPair(data));
-        public CoordPair GetCoordPair_Iccs(string iccs) => GetCoordPair(new CoordPair(iccs));
+        public CoordPair GetCoordPair(char[] rowCol) => GetCoordPair(new CoordPair(rowCol));
+        public CoordPair GetCoordPair(string iccs) => GetCoordPair(new CoordPair(iccs));
 
         public override string ToString()
         {
@@ -388,10 +388,8 @@ namespace CChess
             return true;
         }
 
-        public CoordPair GetCoordPair(CoordPair tempCoordPair)
-        {
-            return new(this[tempCoordPair.FromCoord].Coord, this[tempCoordPair.ToCoord].Coord);
-        }
+        private CoordPair GetCoordPair(CoordPair tempCoordPair)
+            => new(this[tempCoordPair.FromCoord].Coord, this[tempCoordPair.ToCoord].Coord);
 
         // [Color][Kind][Index]
         private readonly Piece[][][] _pieces;

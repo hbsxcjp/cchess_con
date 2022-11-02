@@ -24,17 +24,17 @@ namespace CChess
             for(int i = 0;i < fenCount;i++)
             {
                 string fen = reader.ReadString();
-                int dataCount = reader.ReadInt32();
-                Dictionary<ushort, List<int>> aspectData = new();
-                for(int j = 0;j < dataCount;j++)
+                int rowColCount = reader.ReadInt32();
+                Dictionary<string, List<int>> aspectData = new();
+                for(int j = 0;j < rowColCount;j++)
                 {
-                    ushort data = reader.ReadUInt16();
+                    string rowCol = reader.ReadString();
                     int valueCount = reader.ReadInt32();
                     List<int> valueList = new();
                     for(int k = 0;k < valueCount;k++)
                         valueList.Add(reader.ReadInt32());
 
-                    aspectData.TryAdd(data, valueList);
+                    aspectData.TryAdd(rowCol, valueList);
                 }
                 _aspectDict.TryAdd(fen, aspectData);
             }
@@ -73,26 +73,26 @@ namespace CChess
             //    (x) => x = true);
         }
 
-        public List<(CoordPair coordPair, List<int> valueList)>? GetAspectData(string fen)
+        public List<(string rowCol, List<int> valueList)>? GetAspectData(string fen)
         {
             var (finded, findCt, findFen) = FindCtFens(fen);
             if(!finded)
                 return null;
 
             return _aspectDict[findFen].Select(
-                dataValue => (new CoordPair(dataValue.Key).GetCoordPair(findCt), dataValue.Value)).ToList();
+                rowColValue => (Coord.GetRowCol(rowColValue.Key, findCt), rowColValue.Value)).ToList();
         }
         override public string ToString()
         {
-            static string FenDataToString(KeyValuePair<string, Dictionary<ushort, List<int>>> fenData,
+            static string FenDataToString(KeyValuePair<string, Dictionary<string, List<int>>> fenData,
                   ParallelLoopState loop, string subString)
             {
                 subString += fenData.Key + " [";
                 foreach(var aspectData in fenData.Value)
                 {
-                    subString += String.Format($"{aspectData.Key:X4}(");
-                    foreach(var x in aspectData.Value)
-                        subString += x.ToString() + ' ';
+                    subString += aspectData.Key + "(";
+                    foreach(var value in aspectData.Value)
+                        subString += value.ToString() + ' ';
 
                     subString = subString.TrimEnd() + ") ";
                 }
@@ -111,10 +111,10 @@ namespace CChess
             return string.Concat(subStringCollection);
         }
 
-        private bool Join((string fen, ushort data) aspect)
+        private bool Join((string fen, string rowCol) aspect)
         {
-            var (fen, data) = aspect;
-            Dictionary<ushort, List<int>> aspectData;
+            var (fen, rowCol) = aspect;
+            Dictionary<string, List<int>> aspectData;
             var (finded, findCt, findFen) = FindCtFens(fen);
             if(finded)
                 aspectData = _aspectDict[findFen];
@@ -125,14 +125,14 @@ namespace CChess
             }
 
             if(findCt != ChangeType.NoChange)
-                data = new CoordPair(data).GetCoordPair(findCt).Data;
+                rowCol = Coord.GetRowCol(rowCol, findCt);
 
-            if(aspectData.ContainsKey(data))
+            if(aspectData.ContainsKey(rowCol))
             {
-                aspectData[data][0]++; // 第一项计数，列表可添加功能
+                aspectData[rowCol][0]++; // 第一项计数，列表可添加功能
             }
             else
-                aspectData.TryAdd(data, new List<int>() { 1 });
+                aspectData.TryAdd(rowCol, new List<int>() { 1 });
 
             return true;
         }
@@ -150,6 +150,6 @@ namespace CChess
             return (false, ChangeType.NoChange, fen);
         }
 
-        private readonly Dictionary<string, Dictionary<ushort, List<int>>> _aspectDict;
+        private readonly Dictionary<string, Dictionary<string, List<int>>> _aspectDict;
     }
 }
