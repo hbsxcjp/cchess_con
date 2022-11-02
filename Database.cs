@@ -44,17 +44,19 @@ namespace CChess
                     {
                         var taskA = Client.GetByteArrayAsync(uri);
 
-                        //{ "TITLE", "EVENT", "DATE", "SITE", "BLACK", "MOVESTR", "RED", "ECCOSN", "ECCONAME", "RESULT" };
                         string pattern = @"<title>(.*?)</title>.*?>([^>]+赛[^>]*?)<.*?>(\d+年\d+月(?:\d+日)?)(?: ([^<]*?))?<.*?>黑方 ([^<]*?)<.*?MoveList=(.*?)"".*?>红方 ([^<]*?)<.*?>([A-E]\d{2})\. ([^<]*?)<.*\((.*?)\)</pre>";
                         Regex regex = new(pattern, RegexOptions.Singleline);
                         Match match = regex.Match(codec.GetString(taskA.Result));
                         if(!match.Success)
                             return Array.Empty<string>();
 
+                        // "source", "title", "event", "date", "site", "black", "rowCols", "red", "eccoSn", "eccoName", "win"
                         string[] infos = new string[InfoBaseKeys.Length];
-                        infos[0] = uri;
                         for(int i = 1;i < infos.Length;i++)
-                            infos[i] = i != 6 ? match.Groups[i].Value : Coord.RowCols(match.Groups[i].Value.Replace("-", "").Replace("+", ""));
+                            infos[i] = match.Groups[i].Value;
+
+                        infos[0] = uri;
+                        infos[6] = Coord.RowCols(infos[6].Replace("-", "").Replace("+", ""));
                         return infos;
                     });
                 }
