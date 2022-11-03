@@ -200,19 +200,19 @@ namespace CChess
             Encoding codec = Encoding.GetEncoding("gb18030"); // "gb2312"
             string[] result = { "未知", "红胜", "黑胜", "和棋" };
             string[] typestr = { "全局", "开局", "中局", "残局" };
-            SetInfoValue(Database.InfoExtendKeys[4], string.Format($"{Version[0]}"));
-            SetInfoValue(Database.InfoBaseKeys[10], result[headPlayResult[0]]);
-            SetInfoValue(Database.InfoExtendKeys[3], typestr[headCodeA_H[0]]);
-            SetInfoValue(Database.InfoBaseKeys[1], codec.GetString(TitleA).Replace('\0', ' '));
-            SetInfoValue(Database.InfoBaseKeys[2], codec.GetString(Event).Replace('\0', ' '));
-            SetInfoValue(Database.InfoBaseKeys[3], codec.GetString(Date).Replace('\0', ' '));
-            SetInfoValue(Database.InfoBaseKeys[4], codec.GetString(Site).Replace('\0', ' '));
-            SetInfoValue(Database.InfoBaseKeys[7], codec.GetString(Red).Replace('\0', ' '));
-            SetInfoValue(Database.InfoBaseKeys[5], codec.GetString(Black).Replace('\0', ' '));
-            SetInfoValue(Database.InfoExtendKeys[0], codec.GetString(Opening).Replace('\0', ' '));
-            SetInfoValue(Database.InfoExtendKeys[1], codec.GetString(RMKWriter).Replace('\0', ' '));
-            SetInfoValue(Database.InfoExtendKeys[2], codec.GetString(Author).Replace('\0', ' '));
-            SetInfoValue(Database.InfoExtendKeys[5], string.Format($"{Board.GetFEN(pieceChars.ToString())} r - - 0 1")); // 可能存在不是红棋先走的情况？
+            SetInfoValue(Database.InfoKeys[15], string.Format($"{Version[0]}"));
+            SetInfoValue(Database.InfoKeys[10], result[headPlayResult[0]]);
+            SetInfoValue(Database.InfoKeys[14], typestr[headCodeA_H[0]]);
+            SetInfoValue(Database.InfoKeys[1], codec.GetString(TitleA).Replace('\0', ' '));
+            SetInfoValue(Database.InfoKeys[2], codec.GetString(Event).Replace('\0', ' '));
+            SetInfoValue(Database.InfoKeys[3], codec.GetString(Date).Replace('\0', ' '));
+            SetInfoValue(Database.InfoKeys[4], codec.GetString(Site).Replace('\0', ' '));
+            SetInfoValue(Database.InfoKeys[7], codec.GetString(Red).Replace('\0', ' '));
+            SetInfoValue(Database.InfoKeys[5], codec.GetString(Black).Replace('\0', ' '));
+            SetInfoValue(Database.InfoKeys[11], codec.GetString(Opening).Replace('\0', ' '));
+            SetInfoValue(Database.InfoKeys[12], codec.GetString(RMKWriter).Replace('\0', ' '));
+            SetInfoValue(Database.InfoKeys[13], codec.GetString(Author).Replace('\0', ' '));
+            SetInfoValue(Database.InfoKeys[16], string.Format($"{Board.GetFEN(pieceChars.ToString())} r - - 0 1")); // 可能存在不是红棋先走的情况？
             SetBoard();
 
             byte __sub(byte a, byte b) { return (byte)(a - b); }; // 保持为<256

@@ -222,6 +222,29 @@ namespace CChess
             return result;
         }
 
+        public byte[] GetByteArray()
+        {
+            List<byte> byteList = new();
+            void writeRemarkAfterNum(string? remark, int afterNum)
+            {
+                byte rem = (byte)(remark == null ? 0 : 1);
+                byteList.Add(rem);
+                if(rem != 0)
+                    //byteList.AddRange(remark.ToArray());
+                byteList.Add((byte)afterNum);
+            }
+
+            writeRemarkAfterNum(_rootMove.Remark, _rootMove.AfterNum);
+            foreach(var move in this)
+            {
+                byteList.Add((byte)(move.Visible ? 1 : 0));
+                //byteList.Add(move.CoordPair.ICCS);
+                writeRemarkAfterNum(move.Remark, move.AfterNum);
+            }
+
+            return byteList.ToArray();
+        }
+
         public List<(string fen, string rowCol)> GetAspects()
         {
             List<(string fen, string rowCol)> aspects = new();

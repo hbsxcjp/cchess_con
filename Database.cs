@@ -11,30 +11,14 @@ namespace CChess
 {
     internal class Database
     {
-        public static readonly string[] InfoBaseKeys = {
-            "source", "title", "event", "date", "site", "black", "rowCols", "red", "eccoSn", "eccoName", "win"};
-        public static readonly string[] InfoExtendKeys = { "opening", "writer", "author", "type", "version", "FEN", "moveString" };
 
-
-        private static void GetInfo(Dictionary<string, string> info, SqliteDataReader reader)
-        {
-            for(int index = 0;index < reader.FieldCount;++index)
-                info[reader.GetName(index)] = reader.GetString(index);
-        }
-
-        //private void InsertInfo(Dictionary<string, string> info)
-        //{
-        //    SqliteCommand command = new(
-        //        string.Format($"INSERT INTO {manualTableName} ({string.Join(", ", info.Keys)}) " +
-        //        $"VALUES({string.Join(", ", info.Values.Select(value => string.Format($"'{value}'")))})"),
-        //        SqliteConnection);
-        //    command.ExecuteNonQuery();
-        //}
 
         public void DownXqbaseManual()
         {
+            const int XqbaseInfoCount = 11;
             IEnumerable<string[]> GetInfosListFromXqbase(int start, int end)
             {
+                using HttpClient client = new();
                 Encoding codec = Encoding.GetEncoding("gb2312");
                 Task<string[]>[] taskArray = new Task<string[]>[end - start + 1];
                 for(int i = 0;i < taskArray.Length;i++)
@@ -42,7 +26,7 @@ namespace CChess
                     string uri = string.Format(@"https://www.xqbase.com/xqbase/?gameid={0}", i + start);
                     taskArray[i] = Task<string[]>.Factory.StartNew(() =>
                     {
-                        var taskA = Client.GetByteArrayAsync(uri);
+                        var taskA = client.GetByteArrayAsync(uri);
 
                         string pattern = @"<title>(.*?)</title>.*?>([^>]+赛[^>]*?)<.*?>(\d+年\d+月(?:\d+日)?)(?: ([^<]*?))?<.*?>黑方 ([^<]*?)<.*?MoveList=(.*?)"".*?>红方 ([^<]*?)<.*?>([A-E]\d{2})\. ([^<]*?)<.*\((.*?)\)</pre>";
                         Regex regex = new(pattern, RegexOptions.Singleline);
@@ -51,7 +35,7 @@ namespace CChess
                             return Array.Empty<string>();
 
                         // "source", "title", "event", "date", "site", "black", "rowCols", "red", "eccoSn", "eccoName", "win"
-                        string[] infos = new string[InfoBaseKeys.Length];
+                        string[] infos = new string[XqbaseInfoCount];
                         for(int i = 1;i < infos.Length;i++)
                             infos[i] = match.Groups[i].Value;
 
@@ -67,17 +51,19 @@ namespace CChess
 
             void InsertInfosList(IEnumerable<string[]> infosList)
             {
-                using var transaction = SqliteConnection.BeginTransaction();
+                using SqliteConnection connection = GetSqliteConnection();
+                using var transaction = connection.BeginTransaction();
 
-                var command = SqliteConnection.CreateCommand();
+                var command = connection.CreateCommand();
                 List<string> values = new();
-                foreach(var key in InfoBaseKeys)
+                string[] xqbaseInfoKeys = InfoKeys[..XqbaseInfoCount];
+                foreach(var key in xqbaseInfoKeys)
                 {
                     var paramName = string.Format($"${key}");
                     values.Add(paramName);
                     command.Parameters.Add(new() { ParameterName = paramName });
                 }
-                var fields = string.Join(", ", InfoBaseKeys.Select(key => string.Format($"'{key}'")));
+                var fields = string.Join(", ", xqbaseInfoKeys.Select(key => string.Format($"'{key}'")));
                 command.CommandText = $"INSERT INTO {manualTableName} ({fields}) VALUES ({string.Join(", ", values)})";
 
                 foreach(var infos in infosList)
@@ -95,41 +81,50 @@ namespace CChess
             InsertInfosList(GetInfosListFromXqbase(6, 10)); //总数:12141
         }
 
-        private SqliteConnection SqliteConnection
+        public static readonly string[] InfoKeys = {
+            "source", "title", "event", "date", "site", "black", "rowCols", "red", "eccoSn", "eccoName", "win",
+            "opening", "writer", "author", "type", "version", "FEN", "moveString" };
+
+        private static void GetInfo(Dictionary<string, string> info, SqliteDataReader reader)
         {
-            get
-            {
-                if(_connection != null)
-                    return _connection;
-
-                bool fileExists = File.Exists(databaseFileName);
-                if(!fileExists)
-                    using(File.Create(databaseFileName)) { };
-
-                _connection = new("Data Source=" + databaseFileName);
-                _connection.Open();
-                if(!fileExists)
-                {
-                    string[] commandString = new string[]{
-                        string.Format($"CREATE TABLE {manualTableName} (id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                        $"{string.Join(",", (InfoBaseKeys.Concat(InfoExtendKeys)).Select(field => field + " TEXT"))})"), };
-                    SqliteCommand command = _connection.CreateCommand();
-                    foreach(var str in commandString)
-                    {
-                        command.CommandText = str;
-                        command.ExecuteNonQuery();
-                    }
-                }
-
-                return _connection;
-            }
+            for(int index = 0;index < reader.FieldCount;++index)
+                info[reader.GetName(index)] = reader.GetString(index);
         }
-        private HttpClient Client { get { return _client ??= new(); } }
 
-        private readonly string databaseFileName = "data.db";
+        //private void InsertInfo(Dictionary<string, string> info)
+        //{
+        //    SqliteCommand command = new(
+        //        string.Format($"INSERT INTO {manualTableName} ({string.Join(", ", info.Keys)}) " +
+        //        $"VALUES({string.Join(", ", info.Values.Select(value => string.Format($"'{value}'")))})"),
+        //        SqliteConnection);
+        //    command.ExecuteNonQuery();
+        //}
+
+        private SqliteConnection GetSqliteConnection()
+        {
+            string databaseFileName = "data.db";
+            bool fileExists = File.Exists(databaseFileName);
+            if(!fileExists)
+                using(File.Create(databaseFileName)) { };
+
+            SqliteConnection connection = new("Data Source=" + databaseFileName);
+            connection.Open();
+            if(!fileExists)
+            {
+                string[] commandString = new string[]{
+                        string.Format($"CREATE TABLE {manualTableName} (id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                        $"{string.Join(",", InfoKeys.Select(field => field + " TEXT"))})"), };
+                SqliteCommand command = connection.CreateCommand();
+                foreach(var str in commandString)
+                {
+                    command.CommandText = str;
+                    command.ExecuteNonQuery();
+                }
+            }
+
+            return connection;
+        }
+
         private readonly string manualTableName = "manual";
-
-        private SqliteConnection? _connection;
-        private HttpClient? _client = null;
     }
 }
