@@ -12,93 +12,77 @@ namespace CChess
     internal class Database
     {
 
+        public static readonly string[] InfoKeys = {
+            "source", "title", "event", "date", "site", "black", "rowCols", "red", "eccoSn", "eccoName", "win",
+            "opening", "writer", "author", "type", "version", "FEN", "moveString" };
+
 
         public void DownXqbaseManual()
         {
             const int XqbaseInfoCount = 11;
-            IEnumerable<string[]> GetInfosListFromXqbase(int start, int end)
+            using HttpClient client = new();
+            Encoding codec = Encoding.GetEncoding("gb2312");
+            Dictionary<string, string> GetInfo(string uri)
             {
-                using HttpClient client = new();
-                Encoding codec = Encoding.GetEncoding("gb2312");
-                Task<string[]>[] taskArray = new Task<string[]>[end - start + 1];
-                for(int i = 0;i < taskArray.Length;i++)
-                {
-                    string uri = string.Format(@"https://www.xqbase.com/xqbase/?gameid={0}", i + start);
-                    taskArray[i] = Task<string[]>.Factory.StartNew(() =>
-                    {
-                        var taskA = client.GetByteArrayAsync(uri);
+                string pattern = @"<title>(.*?)</title>.*?>([^>]+赛[^>]*?)<.*?>(\d+年\d+月(?:\d+日)?)(?: ([^<]*?))?<.*?>黑方 ([^<]*?)<.*?MoveList=(.*?)"".*?>红方 ([^<]*?)<.*?>([A-E]\d{2})\. ([^<]*?)<.*\((.*?)\)</pre>";
+                var taskA = client.GetByteArrayAsync(uri);
+                Match match = Regex.Match(codec.GetString(taskA.Result), pattern, RegexOptions.Singleline);
+                if(!match.Success)
+                    return new();
 
-                        string pattern = @"<title>(.*?)</title>.*?>([^>]+赛[^>]*?)<.*?>(\d+年\d+月(?:\d+日)?)(?: ([^<]*?))?<.*?>黑方 ([^<]*?)<.*?MoveList=(.*?)"".*?>红方 ([^<]*?)<.*?>([A-E]\d{2})\. ([^<]*?)<.*\((.*?)\)</pre>";
-                        Regex regex = new(pattern, RegexOptions.Singleline);
-                        Match match = regex.Match(codec.GetString(taskA.Result));
-                        if(!match.Success)
-                            return Array.Empty<string>();
+                // "source", "title", "event", "date", "site", "black", "rowCols", "red", "eccoSn", "eccoName", "win"
+                Dictionary<string, string> info = new() { { InfoKeys[0], uri } };
+                for(int i = 1;i < XqbaseInfoCount;i++)
+                    info[InfoKeys[i]] = i != 6 ? match.Groups[i].Value
+                        : Coord.RowCols(match.Groups[i].Value.Replace("-", "").Replace("+", ""));
 
-                        // "source", "title", "event", "date", "site", "black", "rowCols", "red", "eccoSn", "eccoName", "win"
-                        string[] infos = new string[XqbaseInfoCount];
-                        for(int i = 1;i < infos.Length;i++)
-                            infos[i] = match.Groups[i].Value;
-
-                        infos[0] = uri;
-                        infos[6] = Coord.RowCols(infos[6].Replace("-", "").Replace("+", ""));
-                        return infos;
-                    });
-                }
-
-                Task.WaitAll(taskArray);
-                return taskArray.Select(task => task.Result);
+                return info;
             }
 
-            void InsertInfosList(IEnumerable<string[]> infosList)
+            int start = 1, end = 5; //总数:12141
+            Task<Dictionary<string, string>>[] taskArray = new Task<Dictionary<string, string>>[end - start + 1];
+            for(int i = 0;i < taskArray.Length;i++)
             {
-                using SqliteConnection connection = GetSqliteConnection();
-                using var transaction = connection.BeginTransaction();
-
-                var command = connection.CreateCommand();
-                List<string> values = new();
-                string[] xqbaseInfoKeys = InfoKeys[..XqbaseInfoCount];
-                foreach(var key in xqbaseInfoKeys)
-                {
-                    var paramName = string.Format($"${key}");
-                    values.Add(paramName);
-                    command.Parameters.Add(new() { ParameterName = paramName });
-                }
-                var fields = string.Join(", ", xqbaseInfoKeys.Select(key => string.Format($"'{key}'")));
-                command.CommandText = $"INSERT INTO {manualTableName} ({fields}) VALUES ({string.Join(", ", values)})";
-
-                foreach(var infos in infosList)
-                {
-                    int index = 0;
-                    foreach(var value in infos)
-                        command.Parameters[index++].Value = value;
-
-                    command.ExecuteNonQuery();
-                }
-
-                transaction.Commit();
+                string uri = string.Format(@"https://www.xqbase.com/xqbase/?gameid={0}", i + start);
+                taskArray[i] = Task<Dictionary<string, string>>.Factory.StartNew(() => GetInfo(uri));
             }
-
-            InsertInfosList(GetInfosListFromXqbase(6, 10)); //总数:12141
+            Task.WaitAll(taskArray);
+            InsertInfoList(taskArray.Select(task => task.Result));
         }
 
-        public static readonly string[] InfoKeys = {
-            "source", "title", "event", "date", "site", "black", "rowCols", "red", "eccoSn", "eccoName", "win",
-            "opening", "writer", "author", "type", "version", "FEN", "moveString" };
+        private void InsertInfoList(IEnumerable<Dictionary<string, string>> infoList)
+        {
+            using SqliteConnection connection = GetSqliteConnection();
+            using var transaction = connection.BeginTransaction();
+
+            var command = connection.CreateCommand();
+            // 要求：所有Info的Keys都相同
+            var infoKeys = infoList.First().Keys;
+            static string ParamName(string key) => "$" + key;
+            foreach(var key in infoKeys)
+                command.Parameters.Add(new() { ParameterName = ParamName(key) });
+
+            static string JoinEnumableString(IEnumerable<string> strings) => string.Join(", ", strings);
+            var fields = JoinEnumableString(infoKeys.Select(key => string.Format($"'{key}'")));
+            command.CommandText = $"INSERT INTO {manualTableName} ({fields}) " +
+                $"VALUES ({JoinEnumableString(infoKeys.Select(key => ParamName(key)))})";
+
+            foreach(var info in infoList)
+            {
+                foreach(var key in infoKeys)
+                    command.Parameters[ParamName(key)].Value = info[key];
+
+                command.ExecuteNonQuery();
+            }
+
+            transaction.Commit();
+        }
 
         private static void GetInfo(Dictionary<string, string> info, SqliteDataReader reader)
         {
             for(int index = 0;index < reader.FieldCount;++index)
                 info[reader.GetName(index)] = reader.GetString(index);
         }
-
-        //private void InsertInfo(Dictionary<string, string> info)
-        //{
-        //    SqliteCommand command = new(
-        //        string.Format($"INSERT INTO {manualTableName} ({string.Join(", ", info.Keys)}) " +
-        //        $"VALUES({string.Join(", ", info.Values.Select(value => string.Format($"'{value}'")))})"),
-        //        SqliteConnection);
-        //    command.ExecuteNonQuery();
-        //}
 
         private SqliteConnection GetSqliteConnection()
         {

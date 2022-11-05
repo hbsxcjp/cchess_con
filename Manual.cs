@@ -20,6 +20,16 @@ using System.Xml;
 
 namespace CChess
 {
+    internal enum FileExtType
+    {
+        Xqf,
+        Cm,
+        Text,
+        PGNRowCol,
+        PGNIccs,
+        PGNZh,
+    }
+
     internal class Manual
     {
         public Manual()
@@ -29,49 +39,46 @@ namespace CChess
 
             SetInfoValue("FEN", FEN);
         }
-        public PGNType PGNType { get { return _manualMove.PGNType; } set { _manualMove.PGNType = value; } }
+        public string MoveString { get { return _manualMove.GetString(); } }
 
-        public Manual(string fileName, PGNType pGNType = PGNType.Zh) : this()
+        public Manual(string fileName) : this()
         {
-            PGNType = pGNType;
-            switch(fileName[fileName.LastIndexOf('.')..].ToUpper())
+            FileExtType fileExtType = GetFileExtType(fileName);
+            switch(fileExtType)
             {
-                case ".XQF":
+                case FileExtType.Xqf:
                     ReadXQF(fileName);
                     break;
-                case ".CM":
+                case FileExtType.Cm:
                     ReadCM(fileName);
                     break;
-                case ".PGN":
-                    ReadPGN(fileName);
-                    break;
                 default:
+                    ReadText(fileName, fileExtType);
                     return;
             }
         }
         public void Write(string fileName)
         {
-            switch(fileName[fileName.LastIndexOf('.')..].ToUpper())
+            FileExtType fileExtType = GetFileExtType(fileName);
+            switch(fileExtType)
             {
-                case ".XQF":
+                case FileExtType.Xqf:
                     //ReadXQF(fileName);
                     break;
-                case ".CM":
+                case FileExtType.Cm:
                     WriteCM(fileName);
                     break;
-                case ".PGN":
-                    WritePGN(fileName);
-                    break;
                 default:
+                    WriteText(fileName, fileExtType);
                     return;
             }
         }
 
-
         public List<(string fen, string rowCol)> GetAspects() => _manualMove.GetAspects();
 
-        public string InfoValue(string key) => _info[key];
+        public string GetInfoValue(string key) => _info[key];
         public void SetInfoValue(string key, string value) => _info[key] = value.Trim();
+
         public string ToString(bool showMove = false, bool isOrder = false)
             => Utility.GetString(_info) + _manualMove.ToString(showMove, isOrder);
 
@@ -256,14 +263,15 @@ namespace CChess
                     if((tag & 0x20) != 0)
                         RemarkSize = __getRemarksize();
                 }
-                if(RemarkSize > 0)
-                { // # 如果有注解
-                    byte[] rem = new byte[2048 * 2];
-                    __readBytes(rem, (int)RemarkSize);
-                    return codec.GetString(rem).Replace('\0', ' ').Replace("\r\n", "\n").Trim();
-                }
 
-                return null;
+                if(RemarkSize == 0)
+                    return null;
+
+                // # 有注解
+                byte[] rem = new byte[2048 * 2];
+                __readBytes(rem, (int)RemarkSize);
+                var remark = codec.GetString(rem).Replace('\0', ' ').Replace("\r\n", "\n").Trim();
+                return remark.Length > 0 ? remark : null;
             }
 
             stream.Seek(1024, SeekOrigin.Begin);
@@ -353,7 +361,8 @@ namespace CChess
 
             _manualMove.WriteCM(writer);
         }
-        private void ReadPGN(string fileName)
+
+        private void ReadText(string fileName, FileExtType fileExtType)
         {
             if(!File.Exists(fileName))
                 return;
@@ -365,16 +374,26 @@ namespace CChess
             Utility.GetInfo(_info, text[..infoEndPos]);
             SetBoard();
 
-            _manualMove.ReadPGN(text[infoEndPos..]);
+            var moveString = text[infoEndPos..];
+            if(fileExtType == FileExtType.Text)
+                _manualMove.FromString(moveString);
+            else
+                _manualMove.FromString(moveString, fileExtType);
         }
-        private void WritePGN(string fileName)
+        private void WriteText(string fileName, FileExtType fileExtType)
         {
             using var stream = File.Open(fileName, FileMode.Create);
             using var writer = new StreamWriter(stream);
-            writer.Write(Utility.GetString(_info) + '\n' + _manualMove.WritePGN());
+            writer.Write(Utility.GetString(_info) + '\n');
+            writer.Write(fileExtType == FileExtType.Text ? _manualMove.GetString() : _manualMove.GetString(fileExtType));
         }
 
-        private bool SetBoard() => _manualMove.SetBoard(InfoValue("FEN"));
+        public static string GetExtName(FileExtType fileExtType) => FileExtName[(int)fileExtType];
+        private static FileExtType GetFileExtType(string fileName)
+            => (FileExtType)(FileExtName.IndexOf(new FileInfo(fileName).Extension));
+        private bool SetBoard() => _manualMove.SetBoard(GetInfoValue("FEN"));
+
+        private readonly static List<string> FileExtName = new() { ".xqf", ".cm", ".text", ".pgnrc", ".pgniccs", ".pgnzh" };
         private const string FEN = "rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR";
 
         private readonly Dictionary<string, string> _info;
