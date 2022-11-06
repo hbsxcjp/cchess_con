@@ -23,20 +23,6 @@ namespace CChess
         public Move CurMove { get; set; }
         public string? CurRemark { get { return CurMove.Remark; } set { CurMove.Remark = value?.Trim(); } }
         public bool EnumMoveDone { get; set; }
-        public string RowCols
-        {
-            get
-            {
-                string rowCols = "";
-                var afterMoves = _rootMove.AfterMoves();
-                while(afterMoves != null && afterMoves.Count > 0)
-                {
-                    rowCols += afterMoves[0].CoordPair.RowCol;
-                    afterMoves = afterMoves[0].AfterMoves();
-                }
-                return rowCols;
-            }
-        }
 
         public List<Coord> GetCanPutCoords(Piece piece) => piece.PutCoord(_board, _board.IsBottomColor(piece.Color));
         public List<Coord> GetCanMoveCoords(Coord fromCoord) => _board.CanMoveCoord(fromCoord);
@@ -256,6 +242,27 @@ namespace CChess
                 EnumMoveDone = oldEnumMoveDone;
 
             return result;
+        }
+
+        public void FromRowCols(string rowCols)
+        {
+            int lenght = rowCols.Length;
+            Move move = _rootMove;
+            for(int i = 0;i < lenght;i += CoordPair.RowColICCSLength)
+                move = move.AddAfterMove(GetCoordPair(rowCols[i..(i + CoordPair.RowColICCSLength)], FileExtType.PGNRowCol));
+        }
+
+        public string GetRowCols()
+        {
+            string rowCols = "";
+            var afterMoves = _rootMove.AfterMoves();
+            while(afterMoves != null && afterMoves.Count > 0)
+            {
+                rowCols += afterMoves[0].CoordPair.RowCol;
+                afterMoves = afterMoves[0].AfterMoves();
+            }
+
+            return rowCols;
         }
 
         public List<(string fen, string rowCol)> GetAspects()

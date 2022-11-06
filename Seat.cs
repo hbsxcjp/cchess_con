@@ -56,12 +56,12 @@ namespace CChess
 
         public static string RowCols(string iccses)
         {
-            StringBuilder stringBuilder = new(iccses);
-            for(int i = 0;i < stringBuilder.Length;++i)
-                if(char.IsLetter(stringBuilder[i]))
-                    stringBuilder[i] = ColChars.IndexOf(stringBuilder[i]).ToString()[0];
+            string rowCols = "";
+            for(int i = 0;i < iccses.Length;i += CoordPair.RowColICCSLength)
+                rowCols += string.Format($"{iccses[i + 1]}{ColChars.IndexOf(iccses[i])}" +
+                    $"{iccses[i + 3]}{ColChars.IndexOf(iccses[i + 2])}");
 
-            return stringBuilder.ToString();
+            return rowCols;
         }
 
         public static List<(int, int)> GetAllRowCol()
@@ -128,6 +128,8 @@ namespace CChess
         public string ICCS { get { return FromCoord.ICCS + ToCoord.ICCS; } }
 
         public override string ToString() => string.Format($"[{FromCoord},{ToCoord}]");
+
+        public const int RowColICCSLength = 4;
     }
 
     internal class Seat

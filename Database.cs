@@ -9,15 +9,37 @@ using Microsoft.Data.Sqlite;
 
 namespace CChess
 {
+    internal enum ManualField
+    {
+        Source, Title, Event, Date, Site, Black, RowCols, Red, EccoSn, EccoName, Win,
+        Opening, Writer, Author, Type, Version, FEN, MoveString
+    }
     internal class Database
     {
+        public List<Manual> GetManuals(string condition = "1")
+        {
+            static Dictionary<string, string> GetInfo(SqliteDataReader reader)
+            {
+                Dictionary<string, string> info = new();
+                for(int index = 0;index < reader.FieldCount;++index)
+                    if(!reader.IsDBNull(index))
+                        info[reader.GetName(index)] = reader.GetString(index);
 
-        public static readonly string[] InfoKeys = {
-            "source", "title", "event", "date", "site", "black", "rowCols", "red", "eccoSn", "eccoName", "win",
-            "opening", "writer", "author", "type", "version", "FEN", "moveString" };
+                return info;
+            }
 
+            List<Manual> manuals = new();
+            using SqliteConnection connection = GetSqliteConnection();
+            SqliteCommand command = new(ManualSelectCommandText(condition), connection);
+            using SqliteDataReader reader = command.ExecuteReader();
+            while(reader.Read())
+                manuals.Add(new(GetInfo(reader)));
 
-        public void DownXqbaseManual()
+            return manuals;
+        }
+
+        //总界限:1~12141
+        public void DownXqbaseManual(int start = 1, int end = 5)
         {
             const int XqbaseInfoCount = 11;
             using HttpClient client = new();
@@ -31,15 +53,14 @@ namespace CChess
                     return new();
 
                 // "source", "title", "event", "date", "site", "black", "rowCols", "red", "eccoSn", "eccoName", "win"
-                Dictionary<string, string> info = new() { { InfoKeys[0], uri } };
+                Dictionary<string, string> info = new() { { GetInfoKey(ManualField.Source), uri } };
                 for(int i = 1;i < XqbaseInfoCount;i++)
-                    info[InfoKeys[i]] = i != 6 ? match.Groups[i].Value
+                    info[GetInfoKey((ManualField)i)] = i != 6 ? match.Groups[i].Value
                         : Coord.RowCols(match.Groups[i].Value.Replace("-", "").Replace("+", ""));
 
                 return info;
             }
 
-            int start = 1, end = 5; //总数:12141
             Task<Dictionary<string, string>>[] taskArray = new Task<Dictionary<string, string>>[end - start + 1];
             for(int i = 0;i < taskArray.Length;i++)
             {
@@ -50,7 +71,9 @@ namespace CChess
             InsertInfoList(taskArray.Select(task => task.Result));
         }
 
-        private void InsertInfoList(IEnumerable<Dictionary<string, string>> infoList)
+        public static string GetInfoKey(ManualField field) => _infoKeys[(int)field];
+
+        private void InsertInfoList(IEnumerable<Dictionary<string, string>> infoList, bool unequal = true)
         {
             using SqliteConnection connection = GetSqliteConnection();
             using var transaction = connection.BeginTransaction();
@@ -64,11 +87,15 @@ namespace CChess
 
             static string JoinEnumableString(IEnumerable<string> strings) => string.Join(", ", strings);
             var fields = JoinEnumableString(infoKeys.Select(key => string.Format($"'{key}'")));
-            command.CommandText = $"INSERT INTO {manualTableName} ({fields}) " +
+            command.CommandText = $"INSERT INTO {_manualTableName} ({fields}) " +
                 $"VALUES ({JoinEnumableString(infoKeys.Select(key => ParamName(key)))})";
 
             foreach(var info in infoList)
             {
+                if(unequal && ExistsManual(connection,
+                    FieldEqualCondition(ManualField.Source, info[GetInfoKey(ManualField.Source)])))
+                    continue;
+
                 foreach(var key in infoKeys)
                     command.Parameters[ParamName(key)].Value = info[key];
 
@@ -77,13 +104,15 @@ namespace CChess
 
             transaction.Commit();
         }
-
-        private static void GetInfo(Dictionary<string, string> info, SqliteDataReader reader)
+        private bool ExistsManual(SqliteConnection connection, string condition)
         {
-            for(int index = 0;index < reader.FieldCount;++index)
-                info[reader.GetName(index)] = reader.GetString(index);
+            SqliteCommand command = connection.CreateCommand();
+            command.CommandText = ManualSelectCommandText(condition);
+            using var reader = command.ExecuteReader();
+            return reader.Read();
         }
-
+        private string ManualSelectCommandText(string condition) => $"SELECT * FROM {_manualTableName} WHERE {condition}";
+        private static string FieldEqualCondition(ManualField field, string value) => $" {GetInfoKey(field)} == '{value}'";
         private SqliteConnection GetSqliteConnection()
         {
             string databaseFileName = "data.db";
@@ -96,8 +125,8 @@ namespace CChess
             if(!fileExists)
             {
                 string[] commandString = new string[]{
-                        string.Format($"CREATE TABLE {manualTableName} (id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                        $"{string.Join(",", InfoKeys.Select(field => field + " TEXT"))})"), };
+                        string.Format($"CREATE TABLE {_manualTableName} (id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                        $"{string.Join(",", _infoKeys.Select(field => field + " TEXT"))})"), };
                 SqliteCommand command = connection.CreateCommand();
                 foreach(var str in commandString)
                 {
@@ -109,6 +138,9 @@ namespace CChess
             return connection;
         }
 
-        private readonly string manualTableName = "manual";
+        private static readonly string[] _infoKeys = {
+            "source", "title", "event", "date", "site", "black", "rowCols", "red", "eccoSn", "eccoName", "win",
+            "opening", "writer", "author", "type", "version", "FEN", "moveString" };
+        private readonly string _manualTableName = "manual";
     }
 }

@@ -36,11 +36,17 @@ namespace CChess
         {
             _info = new();
             _manualMove = new();
-
-            SetInfoValue("FEN", FEN);
         }
-        public string MoveString { get { return _manualMove.GetString(); } }
 
+        public Manual(Dictionary<string, string> info) : this()
+        {
+            _info = info;
+            string moveStrKey = Database.GetInfoKey(ManualField.MoveString);
+            if(_info.ContainsKey(moveStrKey))
+                _manualMove.FromString(_info[moveStrKey], FileExtType.PGNRowCol);
+            else
+                _manualMove.FromRowCols(_info[Database.GetInfoKey(ManualField.RowCols)]);
+        }
         public Manual(string fileName) : this()
         {
             FileExtType fileExtType = GetFileExtType(fileName);
@@ -76,8 +82,9 @@ namespace CChess
 
         public List<(string fen, string rowCol)> GetAspects() => _manualMove.GetAspects();
 
-        public string GetInfoValue(string key) => _info[key];
-        public void SetInfoValue(string key, string value) => _info[key] = value.Trim();
+        public bool InfoHas(ManualField field) => _info.ContainsKey(Database.GetInfoKey(field));
+        public string GetInfoValue(ManualField field) => _info[Database.GetInfoKey(field)];
+        public void SetInfoValue(ManualField field, string value) => _info[Database.GetInfoKey(field)] = value.Trim();
 
         public string ToString(bool showMove = false, bool isOrder = false)
             => Utility.GetString(_info) + _manualMove.ToString(showMove, isOrder);
@@ -207,19 +214,19 @@ namespace CChess
             Encoding codec = Encoding.GetEncoding("gb18030"); // "gb2312"
             string[] result = { "未知", "红胜", "黑胜", "和棋" };
             string[] typestr = { "全局", "开局", "中局", "残局" };
-            SetInfoValue(Database.InfoKeys[15], string.Format($"{Version[0]}"));
-            SetInfoValue(Database.InfoKeys[10], result[headPlayResult[0]]);
-            SetInfoValue(Database.InfoKeys[14], typestr[headCodeA_H[0]]);
-            SetInfoValue(Database.InfoKeys[1], codec.GetString(TitleA).Replace('\0', ' '));
-            SetInfoValue(Database.InfoKeys[2], codec.GetString(Event).Replace('\0', ' '));
-            SetInfoValue(Database.InfoKeys[3], codec.GetString(Date).Replace('\0', ' '));
-            SetInfoValue(Database.InfoKeys[4], codec.GetString(Site).Replace('\0', ' '));
-            SetInfoValue(Database.InfoKeys[7], codec.GetString(Red).Replace('\0', ' '));
-            SetInfoValue(Database.InfoKeys[5], codec.GetString(Black).Replace('\0', ' '));
-            SetInfoValue(Database.InfoKeys[11], codec.GetString(Opening).Replace('\0', ' '));
-            SetInfoValue(Database.InfoKeys[12], codec.GetString(RMKWriter).Replace('\0', ' '));
-            SetInfoValue(Database.InfoKeys[13], codec.GetString(Author).Replace('\0', ' '));
-            SetInfoValue(Database.InfoKeys[16], string.Format($"{Board.GetFEN(pieceChars.ToString())} r - - 0 1")); // 可能存在不是红棋先走的情况？
+            SetInfoValue(ManualField.FEN, string.Format($"{Board.GetFEN(pieceChars.ToString())} r - - 0 1")); // 可能存在不是红棋先走的情况？
+            SetInfoValue(ManualField.Version, string.Format($"{Version[0]}"));
+            SetInfoValue(ManualField.Win, result[headPlayResult[0]]);
+            SetInfoValue(ManualField.Type, typestr[headCodeA_H[0]]);
+            SetInfoValue(ManualField.Title, codec.GetString(TitleA).Replace('\0', ' '));
+            SetInfoValue(ManualField.Event, codec.GetString(Event).Replace('\0', ' '));
+            SetInfoValue(ManualField.Date, codec.GetString(Date).Replace('\0', ' '));
+            SetInfoValue(ManualField.Site, codec.GetString(Site).Replace('\0', ' '));
+            SetInfoValue(ManualField.Red, codec.GetString(Red).Replace('\0', ' '));
+            SetInfoValue(ManualField.Black, codec.GetString(Black).Replace('\0', ' '));
+            SetInfoValue(ManualField.Opening, codec.GetString(Opening).Replace('\0', ' '));
+            SetInfoValue(ManualField.Writer, codec.GetString(RMKWriter).Replace('\0', ' '));
+            SetInfoValue(ManualField.Author, codec.GetString(Author).Replace('\0', ' '));
             SetBoard();
 
             byte __sub(byte a, byte b) { return (byte)(a - b); }; // 保持为<256
@@ -391,7 +398,7 @@ namespace CChess
         public static string GetExtName(FileExtType fileExtType) => FileExtName[(int)fileExtType];
         private static FileExtType GetFileExtType(string fileName)
             => (FileExtType)(FileExtName.IndexOf(new FileInfo(fileName).Extension));
-        private bool SetBoard() => _manualMove.SetBoard(GetInfoValue("FEN"));
+        private bool SetBoard() => _manualMove.SetBoard(InfoHas(ManualField.FEN) ? GetInfoValue(ManualField.FEN) : FEN);
 
         private readonly static List<string> FileExtName = new() { ".xqf", ".cm", ".text", ".pgnrc", ".pgniccs", ".pgnzh" };
         private const string FEN = "rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR";
