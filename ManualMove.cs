@@ -147,43 +147,46 @@ namespace CChess
             }
         }
 
-        public void FromString(string moveString)
-        {
-            string remarkAfterNumPattern = @"(?:{([\s\S]+?)})?(?:\((\d+)\))? ";
-            var rootMoveMatch = Regex.Match(moveString, "^\n\n" + remarkAfterNumPattern);
-            if(!rootMoveMatch.Success)
-                return;
-
-            var rootRemark = rootMoveMatch.Groups[1].Value;
-            if(rootRemark.Length > 0)
-                _rootMove.Remark = rootRemark;
-            Queue<(Move, int)> moveAfterNumQueue = new();
-            moveAfterNumQueue.Enqueue((_rootMove, Convert.ToInt32(rootMoveMatch.Groups[2].Value)));
-
-            int matchIndex = 0;
-            string movePattern = @"([+-])(\d{4})" + remarkAfterNumPattern;
-            var matches = Regex.Matches(moveString, movePattern);
-            while(moveAfterNumQueue.Count > 0 && matchIndex < matches.Count)
-            {
-                var (beforeMove, beforeAfterNum) = moveAfterNumQueue.Dequeue();
-                for(int i = 0;i < beforeAfterNum;++i)
-                {
-                    Match match = matches[matchIndex++];
-                    bool visible = match.Groups[1].Value == "+";
-                    CoordPair coordPair = _board.GetCoordPair(match.Groups[2].Value.ToArray());
-                    string remark = match.Groups[3].Value, afterNumStr = match.Groups[4].Value;
-
-                    var move = beforeMove.AddAfterMove(coordPair, remark.Length > 0 ? remark : null, visible);
-                    if(afterNumStr.Length > 0)
-                        moveAfterNumQueue.Enqueue((move, Convert.ToInt32(afterNumStr)));
-                }
-            }
-        }
-
         public void FromString(string moveString, FileExtType fileExtType)
         {
+            string movePattern;
+            MatchCollection matches;
+            if(fileExtType == FileExtType.Text)
+            {
+                string remarkAfterNumPattern = @"(?:{([\s\S]+?)})?(?:\((\d+)\))? ";
+                var rootMoveMatch = Regex.Match(moveString, "^" + remarkAfterNumPattern);
+                if(!rootMoveMatch.Success)
+                    return;
+
+                var rootRemark = rootMoveMatch.Groups[1].Value;
+                if(rootRemark.Length > 0)
+                    _rootMove.Remark = rootRemark;
+                Queue<(Move, int)> moveAfterNumQueue = new();
+                moveAfterNumQueue.Enqueue((_rootMove, Convert.ToInt32(rootMoveMatch.Groups[2].Value)));
+
+                int matchIndex = 0;
+                movePattern = @"([+-])(\d{4})" + remarkAfterNumPattern;
+                matches = Regex.Matches(moveString, movePattern);
+                while(moveAfterNumQueue.Count > 0 && matchIndex < matches.Count)
+                {
+                    var (beforeMove, beforeAfterNum) = moveAfterNumQueue.Dequeue();
+                    for(int i = 0;i < beforeAfterNum;++i)
+                    {
+                        Match match = matches[matchIndex++];
+                        bool visible = match.Groups[1].Value == "+";
+                        CoordPair coordPair = _board.GetCoordPair(match.Groups[2].Value.ToArray());
+                        string remark = match.Groups[3].Value, afterNumStr = match.Groups[4].Value;
+
+                        var move = beforeMove.AddAfterMove(coordPair, remark.Length > 0 ? remark : null, visible);
+                        if(afterNumStr.Length > 0)
+                            moveAfterNumQueue.Enqueue((move, Convert.ToInt32(afterNumStr)));
+                    }
+                }
+                return;
+            }
+
             string remarkPattern = @"(?:{([\s\S]+?)})";
-            var remarkMatch = Regex.Match(moveString, "^\n\n" + remarkPattern);
+            var remarkMatch = Regex.Match(moveString, "^" + remarkPattern);
             if(remarkMatch.Success)
                 _rootMove.Remark = remarkMatch.Groups[1].Value;
 
@@ -191,8 +194,8 @@ namespace CChess
             string pgnPattern = (fileExtType == FileExtType.PGNIccs
                 ? @"(?:[" + Coord.ColChars + @"]\d){2}"
                 : (fileExtType == FileExtType.PGNRowCol ? @"\d{4}" : "[" + Piece.PGNZHChars() + @"]{4}"));
-            string movePattern = @"(\d+)\-(" + pgnPattern + @")(_?)" + remarkPattern + @"?\s+";
-            var matches = Regex.Matches(moveString, movePattern);
+            movePattern = @"(\d+)\-(" + pgnPattern + @")(_?)" + remarkPattern + @"?\s+";
+            matches = Regex.Matches(moveString, movePattern);
             foreach(Match match in matches.Cast<Match>())
             {
                 if(!match.Success)
@@ -208,24 +211,26 @@ namespace CChess
                 allMoves.Add(allMoves[id].AddAfterMove(GetCoordPair(pgnText, fileExtType), remark, visible));
             }
         }
-        public string GetString()
-        {
-            static string GetRemarkAfterNum(Move move)
-                => (move.Remark == null ? "" : "{" + move.Remark + "}") +
-                 (move.AfterNum == 0 ? "" : "(" + move.AfterNum.ToString() + ")") + " ";
 
-            static string GetMoveString(Move move)
-                 => string.Format($"{(move.Visible ? "+" : "-")}{move.CoordPair.RowCol}");
-
-            string result = GetRemarkAfterNum(_rootMove);
-            foreach(var move in this)
-                result += GetMoveString(move) + GetRemarkAfterNum(move);
-
-            return result;
-        }
         public string GetString(FileExtType fileExtType)
         {
             string result = "";
+            if(fileExtType == FileExtType.Text)
+            {
+                static string GetRemarkAfterNum(Move move)
+                    => (move.Remark == null ? "" : "{" + move.Remark + "}") +
+                     (move.AfterNum == 0 ? "" : "(" + move.AfterNum.ToString() + ")") + " ";
+
+                static string GetMoveString(Move move)
+                     => string.Format($"{(move.Visible ? "+" : "-")}{move.CoordPair.RowCol}");
+
+                result = GetRemarkAfterNum(_rootMove);
+                foreach(var move in this)
+                    result += GetMoveString(move) + GetRemarkAfterNum(move);
+
+                return result;
+            }
+
             if(_rootMove.Remark != null && _rootMove.Remark.Length > 0)
                 result += "{" + _rootMove.Remark + "}\n";
 

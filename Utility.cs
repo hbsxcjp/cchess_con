@@ -18,14 +18,5 @@ namespace CChess
 
             return result + String.Format($"【{items.Count}】");
         }
-
-        public static void GetInfo(Dictionary<string, string> info, string infoString)
-        {
-            var matches = Regex.Matches(infoString, @"\[(\S+) ""(.*)""\]");
-            foreach(Match match in matches.Cast<Match>())
-                info[match.Groups[1].Value] = match.Groups[2].Value;
-        }
-        public static string GetString(Dictionary<string, string> info)
-            => string.Join("", info.Select(kv => string.Format($"[{kv.Key} \"{kv.Value}\"]\n")));
     }
 }

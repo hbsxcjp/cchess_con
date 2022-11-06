@@ -43,9 +43,9 @@ namespace CChess
             _info = info;
             string moveStrKey = Database.GetInfoKey(ManualField.MoveString);
             if(_info.ContainsKey(moveStrKey))
-                _manualMove.FromString(_info[moveStrKey], FileExtType.PGNRowCol);
+                _manualMove.FromString(_info[moveStrKey], FileExtType.Text);
             else
-                _manualMove.FromRowCols(_info[Database.GetInfoKey(ManualField.RowCols)]);
+                _manualMove.FromRowCols(GetInfoValue(ManualField.RowCols));
         }
         public Manual(string fileName) : this()
         {
@@ -82,12 +82,34 @@ namespace CChess
 
         public List<(string fen, string rowCol)> GetAspects() => _manualMove.GetAspects();
 
+        public Dictionary<string, string> Info { get { return _info; } }
         public bool InfoHas(ManualField field) => _info.ContainsKey(Database.GetInfoKey(field));
         public string GetInfoValue(ManualField field) => _info[Database.GetInfoKey(field)];
-        public void SetInfoValue(ManualField field, string value) => _info[Database.GetInfoKey(field)] = value.Trim();
+        public void SetInfoValue(ManualField field, string value) => _info[Database.GetInfoKey(field)] = value;
+        public void SetDatabaseField(string fileName)
+        {
+            SetInfoValue(ManualField.Source, fileName);
+            SetInfoValue(ManualField.RowCols, _manualMove.GetRowCols());
+            SetInfoValue(ManualField.MoveString, GetMoveString());
+        }
+
+        public void FromString(string manualString, FileExtType fileExtType = FileExtType.Text)
+        {
+            int infoEndPos = manualString.IndexOf("\n\n");
+            SetInfo(manualString[..infoEndPos]);
+            SetBoard();
+
+            var moveString = manualString[(infoEndPos + 2)..];
+            _manualMove.FromString(moveString, fileExtType);
+        }
+        public string GetString(FileExtType fileExtType = FileExtType.Text)
+            => GetInfoString() + "\n" + GetMoveString(fileExtType);
+
+        public string GetMoveString(FileExtType fileExtType = FileExtType.Text)
+            => _manualMove.GetString(fileExtType);
 
         public string ToString(bool showMove = false, bool isOrder = false)
-            => Utility.GetString(_info) + _manualMove.ToString(showMove, isOrder);
+            => GetInfoString() + _manualMove.ToString(showMove, isOrder);
 
         private void ReadXQF(string fileName)
         {
@@ -215,18 +237,15 @@ namespace CChess
             string[] result = { "未知", "红胜", "黑胜", "和棋" };
             string[] typestr = { "全局", "开局", "中局", "残局" };
             SetInfoValue(ManualField.FEN, string.Format($"{Board.GetFEN(pieceChars.ToString())} r - - 0 1")); // 可能存在不是红棋先走的情况？
-            SetInfoValue(ManualField.Version, string.Format($"{Version[0]}"));
-            SetInfoValue(ManualField.Win, result[headPlayResult[0]]);
-            SetInfoValue(ManualField.Type, typestr[headCodeA_H[0]]);
-            SetInfoValue(ManualField.Title, codec.GetString(TitleA).Replace('\0', ' '));
-            SetInfoValue(ManualField.Event, codec.GetString(Event).Replace('\0', ' '));
-            SetInfoValue(ManualField.Date, codec.GetString(Date).Replace('\0', ' '));
-            SetInfoValue(ManualField.Site, codec.GetString(Site).Replace('\0', ' '));
-            SetInfoValue(ManualField.Red, codec.GetString(Red).Replace('\0', ' '));
-            SetInfoValue(ManualField.Black, codec.GetString(Black).Replace('\0', ' '));
-            SetInfoValue(ManualField.Opening, codec.GetString(Opening).Replace('\0', ' '));
-            SetInfoValue(ManualField.Writer, codec.GetString(RMKWriter).Replace('\0', ' '));
-            SetInfoValue(ManualField.Author, codec.GetString(Author).Replace('\0', ' '));
+            SetInfoValue(ManualField.Version, Version[0].ToString());
+            SetInfoValue(ManualField.Win, result[headPlayResult[0]].Trim());
+            SetInfoValue(ManualField.Type, typestr[headCodeA_H[0]].Trim());
+            ManualField[] fields = new ManualField[] { ManualField.Title , ManualField.Event,
+                ManualField.Date, ManualField.Site, ManualField.Red, ManualField.Black,
+                ManualField.Opening, ManualField.Writer, ManualField.Author};
+            byte[][] fieldBytes = new byte[][] { TitleA, Event, Date, Site, Red, Black, Opening, RMKWriter, Author };
+            for(int i = 0;i < fields.Length;i++)
+                SetInfoValue(fields[i], codec.GetString(fieldBytes[i]).Replace('\0', ' ').Trim());
             SetBoard();
 
             byte __sub(byte a, byte b) { return (byte)(a - b); }; // 保持为<256
@@ -377,28 +396,40 @@ namespace CChess
             using var stream = File.Open(fileName, FileMode.Open);
             using var reader = new StreamReader(stream);
             string text = reader.ReadToEnd();
-            int infoEndPos = text.IndexOf("\n\n");
-            Utility.GetInfo(_info, text[..infoEndPos]);
-            SetBoard();
+            FromString(text, fileExtType);
+            //int infoEndPos = text.IndexOf("\n\n");
+            //Utility.GetInfo(_info, text[..infoEndPos]);
+            //SetBoard();
 
-            var moveString = text[infoEndPos..];
-            if(fileExtType == FileExtType.Text)
-                _manualMove.FromString(moveString);
-            else
-                _manualMove.FromString(moveString, fileExtType);
+            //var moveString = text[(infoEndPos + 2)..];
+            //_manualMove.FromString(moveString, fileExtType);
         }
         private void WriteText(string fileName, FileExtType fileExtType)
         {
             using var stream = File.Open(fileName, FileMode.Create);
             using var writer = new StreamWriter(stream);
-            writer.Write(Utility.GetString(_info) + '\n');
-            writer.Write(fileExtType == FileExtType.Text ? _manualMove.GetString() : _manualMove.GetString(fileExtType));
+            writer.Write(GetString(fileExtType));
         }
 
         public static string GetExtName(FileExtType fileExtType) => FileExtName[(int)fileExtType];
         private static FileExtType GetFileExtType(string fileName)
             => (FileExtType)(FileExtName.IndexOf(new FileInfo(fileName).Extension));
         private bool SetBoard() => _manualMove.SetBoard(InfoHas(ManualField.FEN) ? GetInfoValue(ManualField.FEN) : FEN);
+
+        private void SetInfo(string infoString)
+        {
+            var matches = Regex.Matches(infoString, @"\[(\S+) ""(.*)""\]");
+            foreach(Match match in matches.Cast<Match>())
+                _info[match.Groups[1].Value] = match.Groups[2].Value;
+        }
+        private string GetInfoString()
+        {
+            string result = "";
+            foreach(var item in _info)
+                result += "[" + item.Key + " \"" + item.Value + "\"]\n";
+
+            return result;
+        }
 
         private readonly static List<string> FileExtName = new() { ".xqf", ".cm", ".text", ".pgnrc", ".pgniccs", ".pgnzh" };
         private const string FEN = "rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR";

@@ -38,6 +38,18 @@ namespace CChess
             return manuals;
         }
 
+        public void StorageFileManual(IEnumerable<string> fileNames)
+        {
+            IEnumerable<Manual> manuals = fileNames.Select(fileName =>
+            {
+                Manual manual = new(fileName);
+                manual.SetDatabaseField(fileName);
+                return manual;
+            });
+
+            InsertInfoList(manuals.Select(manual => manual.Info));
+        }
+
         //总界限:1~12141
         public void DownXqbaseManual(int start = 1, int end = 5)
         {
