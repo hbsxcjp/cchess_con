@@ -223,8 +223,7 @@ void TestDatabase()
         Debug.Assert(expectManualStrings[index++] == result);
     }
 
-    using StreamWriter sw = File.CreateText(FullFileName("TestEcco", FileExtType.Text));
-    sw.Write(Database.InitEccoData());
+    Database.InitEccoData();
 }
 
 void TestAspect()
@@ -258,7 +257,7 @@ void Test()
     TestManual();
     TestDatabase();
 
-    //TestAspect();
+    TestAspect();
 
     stopWatch.Stop();
     Console.WriteLine(TimeString(stopWatch.Elapsed));
