@@ -38,14 +38,15 @@ namespace CChess
             _manualMove = new();
         }
 
-        public Manual(Dictionary<string, string> info) : this()
+        public Manual(Dictionary<string, string> info)
         {
             _info = info;
+            _manualMove = new();
             string moveStrKey = Database.GetInfoKey(ManualField.MoveString);
             if(_info.ContainsKey(moveStrKey))
-                _manualMove.FromString(_info[moveStrKey], FileExtType.Text);
+                _manualMove.SetFromString(_info[moveStrKey], FileExtType.Text);
             else
-                _manualMove.FromRowCols(GetInfoValue(ManualField.RowCols));
+                _manualMove.SetFromRowCols(GetInfoValue(ManualField.RowCols));
         }
         public Manual(string fileName) : this()
         {
@@ -63,6 +64,7 @@ namespace CChess
                     return;
             }
         }
+
         public void Write(string fileName)
         {
             FileExtType fileExtType = GetFileExtType(fileName);
@@ -80,8 +82,15 @@ namespace CChess
             }
         }
 
+        public void Reset()
+        {
+            _manualMove.BackStart();
+            SetBoard();
+        }
+
         public List<(string fen, string rowCol)> GetAspects() => _manualMove.GetAspects();
 
+        public ManualMove ManualMove { get { return _manualMove; } }
         public Dictionary<string, string> Info { get { return _info; } }
         public bool InfoHas(ManualField field) => _info.ContainsKey(Database.GetInfoKey(field));
         public string GetInfoValue(ManualField field) => _info[Database.GetInfoKey(field)];
@@ -93,14 +102,14 @@ namespace CChess
             SetInfoValue(ManualField.MoveString, GetMoveString());
         }
 
-        public void FromString(string manualString, FileExtType fileExtType = FileExtType.Text)
+        public void SetFromString(string manualString, FileExtType fileExtType = FileExtType.Text)
         {
             int infoEndPos = manualString.IndexOf("\n\n");
             SetInfo(manualString[..infoEndPos]);
             SetBoard();
 
             var moveString = manualString[(infoEndPos + 2)..];
-            _manualMove.FromString(moveString, fileExtType);
+            _manualMove.SetFromString(moveString, fileExtType);
         }
         public string GetString(FileExtType fileExtType = FileExtType.Text)
             => GetInfoString() + "\n" + GetMoveString(fileExtType);
@@ -396,13 +405,7 @@ namespace CChess
             using var stream = File.Open(fileName, FileMode.Open);
             using var reader = new StreamReader(stream);
             string text = reader.ReadToEnd();
-            FromString(text, fileExtType);
-            //int infoEndPos = text.IndexOf("\n\n");
-            //Utility.GetInfo(_info, text[..infoEndPos]);
-            //SetBoard();
-
-            //var moveString = text[(infoEndPos + 2)..];
-            //_manualMove.FromString(moveString, fileExtType);
+            SetFromString(text, fileExtType);
         }
         private void WriteText(string fileName, FileExtType fileExtType)
         {

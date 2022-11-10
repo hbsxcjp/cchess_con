@@ -57,9 +57,8 @@ namespace CChess
         public static string RowCols(string iccses)
         {
             string rowCols = "";
-            for(int i = 0;i < iccses.Length;i += CoordPair.RowColICCSLength)
-                rowCols += string.Format($"{iccses[i + 1]}{ColChars.IndexOf(iccses[i])}" +
-                    $"{iccses[i + 3]}{ColChars.IndexOf(iccses[i + 2])}");
+            for(int i = 0;i < iccses.Length;i += 2)
+                rowCols += string.Format($"{iccses[i + 1]}{ColChars.IndexOf(iccses[i])}");
 
             return rowCols;
         }
@@ -79,6 +78,8 @@ namespace CChess
         public static bool IsValid(int row, int col) => row >= 0 && row < RowCount && col >= 0 && col < ColCount;
 
         public override string ToString() => string.Format($"({row},{col})");
+
+        public static readonly Coord Null = new(-1, -1);
 
         private static int SymmetryRow(int row) => RowCount - 1 - row;
         private static int SymmetryCol(int col) => ColCount - 1 - col;
@@ -129,14 +130,16 @@ namespace CChess
 
         public override string ToString() => string.Format($"[{FromCoord},{ToCoord}]");
 
+        public static readonly CoordPair Null = new(Coord.Null, Coord.Null);
+
         public const int RowColICCSLength = 4;
     }
 
     internal class Seat
     {
-        public Seat(int row, int col)
+        public Seat(Coord coord)
         {
-            Coord = new(row, col);
+            Coord = coord;
             _piece = Piece.NullPiece;
         }
 
@@ -146,13 +149,13 @@ namespace CChess
             get { return _piece; }
             set
             {
-                _piece.Seat = NullSeat;
+                _piece.Seat = Null;
 
                 value.Seat = this;
                 _piece = value;
             }
         }
-        public bool IsNull { get { return this == NullSeat; } }
+        public bool IsNull { get { return this == Null; } }
         public bool HasNullPiece { get { return Piece == Piece.NullPiece; } }
 
         public void MoveTo(Seat toSeat, Piece fromPiece)
@@ -166,13 +169,13 @@ namespace CChess
         {
             var seats = new Seat[Coord.RowCount, Coord.ColCount];
             foreach(var (row, col) in Coord.GetAllRowCol())
-                seats[row, col] = new(row, col);
+                seats[row, col] = new(new(row, col));
 
             return seats;
         }
         public override string ToString() => string.Format($"{Coord}:{_piece}");
 
-        public static readonly Seat NullSeat = new(-1, -1);
+        public static readonly Seat Null = new(Coord.Null);
 
         private Piece _piece;
     }

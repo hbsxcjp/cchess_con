@@ -30,7 +30,7 @@ namespace CChess
         public Piece(PieceColor color)
         {
             Color = color;
-            Seat = Seat.NullSeat;
+            Seat = Seat.Null;
         }
 
         public PieceColor Color { get; }

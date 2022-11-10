@@ -26,11 +26,23 @@ namespace CChess
 
         public List<Coord> GetCanPutCoords(Piece piece) => piece.PutCoord(_board, _board.IsBottomColor(piece.Color));
         public List<Coord> GetCanMoveCoords(Coord fromCoord) => _board.CanMoveCoord(fromCoord);
+
         public bool AcceptCoordPair(CoordPair coordPair)
             => _board.CanMoveCoord(coordPair.FromCoord).Contains(coordPair.ToCoord);
         public bool SetBoard(string fen) => _board.SetFEN(fen.Split(' ')[0]);
-        public void AddMove(CoordPair coordPair, string? remark, bool visible)
+
+        public void AddMove(CoordPair coordPair, string? remark = null, bool visible = true)
             => GoMove(CurMove.AddAfterMove(coordPair, remark, visible));
+        public bool AddMove(string zhStr)
+        {
+            var coordPair = _board.GetCoordPair_Zh(zhStr);
+            bool success = coordPair != CoordPair.Null;
+            if(success)
+                AddMove(coordPair);
+
+            return success;
+        }
+
         public CoordPair GetCoordPair(int frow, int fcol, int trow, int tcol)
             => new(_board[frow, fcol].Coord, _board[trow, tcol].Coord);
 
@@ -147,7 +159,7 @@ namespace CChess
             }
         }
 
-        public void FromString(string moveString, FileExtType fileExtType)
+        public void SetFromString(string moveString, FileExtType fileExtType)
         {
             string movePattern;
             MatchCollection matches;
@@ -249,7 +261,7 @@ namespace CChess
             return result;
         }
 
-        public void FromRowCols(string rowCols)
+        public void SetFromRowCols(string rowCols)
         {
             int lenght = rowCols.Length;
             Move move = _rootMove;

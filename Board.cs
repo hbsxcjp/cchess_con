@@ -228,10 +228,8 @@ namespace CChess
 
 #if DEBUG
             CoordPair checkCoordPair = GetCoordPair_Zh(zhStr);
-            Debug.Assert(checkCoordPair.FromCoord.row == coordPair.FromCoord.row
-                && checkCoordPair.FromCoord.col == coordPair.FromCoord.col
-                && checkCoordPair.ToCoord.row == coordPair.ToCoord.row
-                && checkCoordPair.ToCoord.col == coordPair.ToCoord.col);
+            Debug.Assert(checkCoordPair.FromCoord == coordPair.FromCoord
+                && checkCoordPair.ToCoord == coordPair.ToCoord);
 #endif
             return zhStr;
         }
@@ -249,7 +247,9 @@ namespace CChess
             {   // 首字符为棋子名
                 int col = Coord.GetCol(Piece.GetCol(color, zhStr[1]), isBottomColor);
                 pieces = LivePieces(color, kind, col);
-                Debug.Assert(pieces.Count > 0);
+                //Debug.Assert(pieces.Count > 0);
+                if(pieces.Count == 0)
+                    return CoordPair.Null;
 
                 // 士、象同列时不分前后，以进、退区分棋子。移动方向为退时，修正index
                 if(pieces.Count == 2)
@@ -259,10 +259,15 @@ namespace CChess
             {
                 kind = Piece.GetKind(zhStr[1]);
                 pieces = kind == PieceKind.Pawn ? LivePieces_MultiColPawns(color) : LivePieces(color, kind);
-                Debug.Assert(pieces.Count > 1);
+                //Debug.Assert(pieces.Count > 1);
+                if(pieces.Count < 2)
+                    return CoordPair.Null;
 
                 index = Piece.PreChars(pieces.Count).IndexOf(zhStr[0]);
             }
+
+            if(pieces.Count <= index)
+                return CoordPair.Null;
 
             pieces.Sort(new PieceComparer(isBottomColor));
             Coord fromCoord = pieces[index].Coord;
