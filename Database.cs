@@ -385,7 +385,7 @@ namespace CChess
                             groupRowcols = groupRowcols[..(groupRowcols.Length - 1)];
                         // 如果存在有一个以上标记，则包裹处理
                         if(boutNotOrderCount > 1)
-                            groupRowcols = string.Format($"(?:{groupRowcols}){{{boutNotOrderCount}}}");
+                            groupRowcols = $"(?:{groupRowcols}){{{boutNotOrderCount}}}";
 
                         boutNotOrderCount = 0;
                     }

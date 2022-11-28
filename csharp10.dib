@@ -1,0 +1,12 @@
+#!csharp
+
+Console.WriteLine("Hello, CJP!")  
+
+#!csharp
+
+#!about
+
+#!markdown
+
+# Chapter 1 - Hello, C#! Welcome, .NET!
+Mixing *rich* **text** and code is cool!

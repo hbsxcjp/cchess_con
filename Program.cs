@@ -129,7 +129,7 @@ string[] fileNames = new string[]{
         "4四量拨千斤",
         "第09局",
         "布局陷阱--飞相局对金钩炮",
-        "- 北京张强 (和) 上海胡荣华 (1993.4.27于南京)",
+        // "- 北京张强 (和) 上海胡荣华 (1993.4.27于南京)",
 
         //"中炮对屏风马",
         //"中炮【马8进7】",
@@ -140,7 +140,7 @@ string[] fileNames = new string[]{
     };
 
 static string FullFileName(string fileName, FileExtType extType)
-    => @"C:\program1\gitee\cchess_cs\cchess_con\output\" + fileName + Manual.GetExtName(extType);
+    => @"output/" + fileName + Manual.GetExtName(extType);
 
 void TestManual()
 {
