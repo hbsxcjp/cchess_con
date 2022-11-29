@@ -107,7 +107,7 @@ namespace CChess
         }
 
         override public string ToString()
-            => String.Format($"{new string('\t', BeforeNum)}{Before?.Id}-{CoordPair}.{Id} {Remark}\n");
+            => $"{new string('\t', BeforeNum)}{Before?.Id}-{CoordPair}.{Id} {Remark}\n";
 
         private List<Move>? _afterMoves;
     }

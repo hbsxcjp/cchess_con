@@ -234,7 +234,7 @@ namespace CChess
                      (move.AfterNum == 0 ? "" : "(" + move.AfterNum.ToString() + ")") + " ";
 
                 static string GetMoveString(Move move)
-                     => string.Format($"{(move.Visible ? "+" : "-")}{move.CoordPair.RowCol}");
+                     => $"{(move.Visible ? "+" : "-")}{move.CoordPair.RowCol}";
 
                 result = GetRemarkAfterNum(_rootMove);
                 foreach(var move in this)
@@ -344,7 +344,7 @@ namespace CChess
                     (finalSubString) => results.Add(finalSubString));
                 moveString += string.Concat(results);
             }
-            moveString += string.Format($"着法数量【{moveCount}】\t注解数量【{remarkCount}】\t注解最长【{maxRemarkCount}】\n\n");
+            moveString += $"着法数量【{moveCount}】\t注解数量【{remarkCount}】\t注解最长【{maxRemarkCount}】\n\n";
 
             return _board.ToString() + moveString;
         }

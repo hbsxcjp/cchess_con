@@ -38,7 +38,7 @@ internal class Seat
 
         return seats;
     }
-    public override string ToString() => string.Format($"{Coord}:{_piece}");
+    public override string ToString() => $"{Coord}:{_piece}";
 
     public static readonly Seat Null = new(Coord.Null);
 

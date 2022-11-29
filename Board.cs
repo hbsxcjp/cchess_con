@@ -213,12 +213,12 @@ namespace CChess
                 if(isBottomColor)
                     pieces.Reverse();
                 int index = pieces.IndexOf(fromPiece);
-                zhStr = string.Format($"{Piece.PreChars(pieces.Count)[index]}{name}");
+                zhStr = $"{Piece.PreChars(pieces.Count)[index]}{name}";
             }
             else
             {  //将帅, 仕(士),相(象): 不用“前”和“后”区别，因为能退的一定在前，能进的一定在后
                 char colChar = Piece.GetColChar(color, Coord.GetCol(fromCol, isBottomColor));
-                zhStr = string.Format($"{name}{colChar}");
+                zhStr = $"{name}{colChar}";
             }
 
             char movChar = Piece.MoveChar(isSameRow, isBottomColor == toRow > fromRow);
@@ -226,7 +226,7 @@ namespace CChess
                 ? Math.Abs(fromRow - toRow) - 1
                 : Coord.GetCol(toCol, isBottomColor);
             char toNumColChar = Piece.GetColChar(color, numOrCol);
-            zhStr += string.Format($"{movChar}{toNumColChar}");
+            zhStr += $"{movChar}{toNumColChar}";
 
 #if DEBUG
             CoordPair checkCoordPair = GetCoordPair_Zh(zhStr);

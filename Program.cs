@@ -119,7 +119,7 @@ void TestBoard()
             ChangeType.Rotate, ChangeType.Symmetry_H, ChangeType.Exchange        })
         {
             board.ChangeLayout(ct);
-            result += string.Format($"{ct}: \n{board.GetFEN()}\n{board}{CanMoveCoordString()}\n");
+            result += $"{ct}: \n{board.GetFEN()}\n{board}{CanMoveCoordString()}\n";
         }
         Debug.Assert(expectStrings[index++] == result);
     }
