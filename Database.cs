@@ -415,7 +415,7 @@ namespace CChess
                             {
                                 string preZhStr = zhStr_preZhStr[preZhStrs.First()];
 #if WRITERESULTTEXT
-                                sw.Write(string.Format($"\t\tpremv:{preZhStr}"));
+                                sw.Write($"\t\tpremv:{preZhStr}");
 #endif
                                 success = manual.ManualMove.AddMove(preZhStr);
                                 preZhStrs.Insert(0, preZhStr);
@@ -432,7 +432,7 @@ namespace CChess
 
                         string rowCol = success ? manual.ManualMove.CurMove.CoordPair.RowCol : "";
 #if WRITERESULTTEXT
-                        sw.Write(string.Format($"{(success ? "失败" : "OK ")}:{zhStr} {isGo}: {rowCol}"));
+                        sw.Write($"{(success ? "失败" : "OK ")}:{zhStr} {isGo}: {rowCol}");
 #endif
 
                         return rowCol;
@@ -440,7 +440,7 @@ namespace CChess
 
                     List<string> GetRowcolList(string mvstr, bool isOrder)
                     {
-                        string reg_mv = string.Format(@$"([{Piece.PGNZHChars()}]{4})"),
+                        string reg_mv = @$"([{Piece.PGNZHChars()}]{4})",
                             reg_UnOrderMv = "马二进一/车九平八|马二进三/马八进七|马八进七／马八进九|炮八平六/马八进九|" +
                                 "兵三进一.兵七进一|相三进五／相七进五|仕四进五／仕六进五|马８进７/车９进１|" +
                                 "马８进７/马２进３|炮８进４/炮２进４|炮８平５／炮２平５|炮８平６／炮２平４／炮８平４／炮２平６|" +
@@ -631,7 +631,7 @@ namespace CChess
                 command.Parameters.Add(new() { ParameterName = ParamName(key) });
 
             static string JoinEnumableString(IEnumerable<string> strings) => string.Join(", ", strings);
-            var fields = JoinEnumableString(infoKeys.Select(key => string.Format($"'{key}'")));
+            var fields = JoinEnumableString(infoKeys.Select(key => $"'{key}'"));
             command.CommandText = $"INSERT INTO {_manualTableName} ({fields}) " +
                 $"VALUES ({JoinEnumableString(infoKeys.Select(key => ParamName(key)))})";
 
@@ -670,8 +670,8 @@ namespace CChess
             if(!fileExists)
             {
                 string[] commandString = new string[]{
-                        string.Format($"CREATE TABLE {_manualTableName} (id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                        $"{string.Join(",", _infoKeys.Select(field => field + " TEXT"))})"), };
+                        $"CREATE TABLE {_manualTableName} (id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                        $"{string.Join(",", _infoKeys.Select(field => field + " TEXT"))})", };
                 SqliteCommand command = connection.CreateCommand();
                 foreach(var str in commandString)
                 {

@@ -209,7 +209,9 @@ namespace CChess
                 if(kind == PieceKind.Pawn)
                     pieces = LivePieces_MultiColPawns(color);
 
-                pieces.Sort(new PieceComparer(isBottomColor));
+                pieces.Sort();
+                if(isBottomColor)
+                    pieces.Reverse();
                 int index = pieces.IndexOf(fromPiece);
                 zhStr = string.Format($"{Piece.PreChars(pieces.Count)[index]}{name}");
             }
@@ -269,7 +271,9 @@ namespace CChess
             if(pieces.Count <= index)
                 return CoordPair.Null;
 
-            pieces.Sort(new PieceComparer(isBottomColor));
+            pieces.Sort();
+            if(isBottomColor)
+                pieces.Reverse();
             Coord fromCoord = pieces[index].Coord;
             int toNum = Piece.GetCol(color, zhStr[3]) + 1,
                 toRow = fromCoord.row,

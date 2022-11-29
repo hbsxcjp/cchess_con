@@ -1,22 +1,44 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
+/* 
+1.代码文件中的内容排序：
+外部别名指令
+使用指令
+名称空间
+委托
+枚举
+接口
+结构体
+类
+
+2.类、记录、结构或接口中的内容排序：
+字段
+构造函数
+析构函数（终结器）
+委托
+事件
+枚举
+接口
+属性
+索引器
+方法
+结构体
+嵌套类和记录
+*/
+
 using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
-namespace CChess
+namespace CChess;
+
+internal class Utility
 {
-    internal class Utility
+    public delegate string Show<T>(T t);
+    public static string GetString<T>(List<T> items, Show<T> show, string split = "")
     {
-        public delegate string Show<T>(T t);
-        public static string GetString<T>(List<T> items, Show<T> show, string split = "")
-        {
-            string result = "";
-            foreach(T item in items)
-                result += show(item) + split;
+        StringBuilder builder = new();
+        foreach(T item in items)
+            builder.Append(show(item)).Append(split);
 
-            return result + String.Format($"【{items.Count}】");
-        }
+        builder.Append($"【{items.Count}】");
+        return builder.ToString();
     }
 }
+

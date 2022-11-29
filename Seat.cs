@@ -1,183 +1,48 @@
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+namespace CChess;
 
-namespace CChess
+internal class Seat
 {
-    enum ChangeType
+    public Seat(Coord coord)
     {
-        Exchange,
-        Rotate,
-        Symmetry_H,
-        Symmetry_V,
-        NoChange = -1,
+        Coord = coord;
+        _piece = Piece.NullPiece;
     }
 
-    internal class Coord
+    public Coord Coord { get; }
+    public Piece Piece
     {
-        public Coord(int r, int c) { row = r; col = c; }
-        public Coord(char[] rowCol) : this(int.Parse(rowCol[0].ToString()), int.Parse(rowCol[1].ToString())) { }
-        public Coord(string iccs) : this(int.Parse(iccs[1].ToString()), ColChars.IndexOf(iccs[0])) { }
-
-        public string RowCol { get { return string.Format($"{row}{col}"); } }
-        public string ICCS { get { return string.Format($"{ColChars[col]}{row}"); } }
-        public bool IsBottom { get { return (row << 1) < RowCount; } }
-
-        public static string GetRowCol(string rowCol, ChangeType ct)
+        get { return _piece; }
+        set
         {
-            int frow = int.Parse(rowCol[0].ToString()),
-                fcol = int.Parse(rowCol[1].ToString()),
-                trow = int.Parse(rowCol[2].ToString()),
-                tcol = int.Parse(rowCol[3].ToString());
-            void symmetryCol() { fcol = SymmetryCol(fcol); tcol = SymmetryCol(tcol); }
-            void symmetryRow() { frow = SymmetryRow(frow); trow = SymmetryRow(trow); }
-            switch(ct)
-            {
-                case ChangeType.Symmetry_H:
-                    symmetryCol();
-                    break;
-                case ChangeType.Symmetry_V:
-                    symmetryRow();
-                    break;
-                case ChangeType.Rotate:
-                    symmetryCol();
-                    symmetryRow();
-                    break;
-                default:
-                    break;
-            };
+            _piece.Seat = Null;
 
-            return string.Format($"{frow}{fcol}{trow}{tcol}");
+            value.Seat = this;
+            _piece = value;
         }
+    }
+    public bool IsNull { get { return this == Null; } }
+    public bool HasNullPiece { get { return Piece == Piece.NullPiece; } }
 
-        public static string RowCols(string iccses)
-        {
-            string rowCols = "";
-            for(int i = 0;i < iccses.Length;i += 2)
-                rowCols += string.Format($"{iccses[i + 1]}{ColChars.IndexOf(iccses[i])}");
-
-            return rowCols;
-        }
-
-        public static List<(int, int)> GetAllRowCol()
-        {
-            List<(int, int)> coords = new(RowCount * ColCount);
-            for(int row = 0;row < RowCount;row++)
-                for(int col = 0;col < ColCount;col++)
-                    coords.Add((row, col));
-
-            return coords;
-        }
-
-        public static int GetCol(int col, bool isBottomColor) => isBottomColor ? SymmetryCol(col) : col;
-        public static int GetDoubleIndex(Coord coord) => SymmetryRow(coord.row) * 2 * (ColCount * 2) + coord.col * 2;
-        public static bool IsValid(int row, int col) => row >= 0 && row < RowCount && col >= 0 && col < ColCount;
-
-        public override string ToString() => string.Format($"({row},{col})");
-
-        public static readonly Coord Null = new(-1, -1);
-
-        private static int SymmetryRow(int row) => RowCount - 1 - row;
-        private static int SymmetryCol(int col) => ColCount - 1 - col;
-
-        public const string ColChars = "ABCDEFGHI";
-
-        public const int RowCount = 10;
-        public const int ColCount = 9;
-
-        public readonly int row;
-        public readonly int col;
+    public void MoveTo(Seat toSeat, Piece fromPiece)
+    {
+        Piece piece = Piece;
+        Piece = fromPiece;
+        toSeat.Piece = piece;
     }
 
-    internal class CoordComparer: IComparer<Coord>
+    public static Seat[,] CreatSeats()
     {
-        public CoordComparer(bool isBottomColor) { _isBottomColor = isBottomColor; }
-        public int Compare(Coord? x, Coord? y)
-        {
-            if(x == null || y == null)
-                return 0;
+        var seats = new Seat[Coord.RowCount, Coord.ColCount];
+        foreach(var (row, col) in Coord.GetAllRowCol())
+            seats[row, col] = new(new(row, col));
 
-            int colComp = x.col.CompareTo(y.col);
-            if(colComp != 0)
-                return _isBottomColor ? -colComp : colComp;
-
-            int rowComp = x.row.CompareTo(y.row);
-            return _isBottomColor ? -rowComp : rowComp;
-        }
-
-        private readonly bool _isBottomColor;
+        return seats;
     }
+    public override string ToString() => string.Format($"{Coord}:{_piece}");
 
-    internal class CoordPair
-    {
-        public CoordPair(Coord fromCoord, Coord toCoord)
-        {
-            FromCoord = fromCoord;
-            ToCoord = toCoord;
-        }
-        public CoordPair(char[] rowCol) : this(new(rowCol[..2]), new(rowCol[2..])) { }
-        public CoordPair(string iccs) : this(new(iccs[..2]), new(iccs[2..])) { }
+    public static readonly Seat Null = new(Coord.Null);
 
-        public Coord FromCoord { get; }
-        public Coord ToCoord { get; }
-
-        public string RowCol { get { return string.Format($"{FromCoord.RowCol}{ToCoord.RowCol}"); } }
-        public string ICCS { get { return FromCoord.ICCS + ToCoord.ICCS; } }
-
-        public override string ToString() => string.Format($"[{FromCoord},{ToCoord}]");
-
-        public static readonly CoordPair Null = new(Coord.Null, Coord.Null);
-
-        public const int RowColICCSLength = 4;
-    }
-
-    internal class Seat
-    {
-        public Seat(Coord coord)
-        {
-            Coord = coord;
-            _piece = Piece.NullPiece;
-        }
-
-        public Coord Coord { get; }
-        public Piece Piece
-        {
-            get { return _piece; }
-            set
-            {
-                _piece.Seat = Null;
-
-                value.Seat = this;
-                _piece = value;
-            }
-        }
-        public bool IsNull { get { return this == Null; } }
-        public bool HasNullPiece { get { return Piece == Piece.NullPiece; } }
-
-        public void MoveTo(Seat toSeat, Piece fromPiece)
-        {
-            Piece piece = Piece;
-            Piece = fromPiece;
-            toSeat.Piece = piece;
-        }
-
-        public static Seat[,] CreatSeats()
-        {
-            var seats = new Seat[Coord.RowCount, Coord.ColCount];
-            foreach(var (row, col) in Coord.GetAllRowCol())
-                seats[row, col] = new(new(row, col));
-
-            return seats;
-        }
-        public override string ToString() => string.Format($"{Coord}:{_piece}");
-
-        public static readonly Seat Null = new(Coord.Null);
-
-        private Piece _piece;
-    }
-
+    private Piece _piece;
 }
+
+
