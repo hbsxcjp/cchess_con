@@ -2,9 +2,7 @@
 
 //See https://aka.ms/new-console-template for more information
 using CChess;
-using System;
 using System.Diagnostics;
-using System.Text.RegularExpressions;
 
 #if DEBUG
 
@@ -13,8 +11,8 @@ Utility.Show<Coord> showCoord = new(coord => coord.ToString());
 void TestCoord()
 {
     // Coord.ToString
-    var allRowCol = Coord.GetAllRowCol();
-    var allCoord = allRowCol.Select(rowCol => new Coord(rowCol.Item1, rowCol.Item2)).ToList();
+    // var allRowCol = Coord.GetAllRowCol();
+    var allCoord = Coord.CreatCoords();
     string expect = "(0,0)(0,1)(0,2)(0,3)(0,4)(0,5)(0,6)(0,7)(0,8)(1,0)(1,1)(1,2)(1,3)(1,4)(1,5)(1,6)(1,7)(1,8)(2,0)(2,1)(2,2)(2,3)(2,4)(2,5)(2,6)(2,7)(2,8)(3,0)(3,1)(3,2)(3,3)(3,4)(3,5)(3,6)(3,7)(3,8)(4,0)(4,1)(4,2)(4,3)(4,4)(4,5)(4,6)(4,7)(4,8)(5,0)(5,1)(5,2)(5,3)(5,4)(5,5)(5,6)(5,7)(5,8)(6,0)(6,1)(6,2)(6,3)(6,4)(6,5)(6,6)(6,7)(6,8)(7,0)(7,1)(7,2)(7,3)(7,4)(7,5)(7,6)(7,7)(7,8)(8,0)(8,1)(8,2)(8,3)(8,4)(8,5)(8,6)(8,7)(8,8)(9,0)(9,1)(9,2)(9,3)(9,4)(9,5)(9,6)(9,7)(9,8)【90】";
     string result = Utility.GetString(allCoord, showCoord);
     Debug.Assert(expect == result);
@@ -27,31 +25,18 @@ void TestCoord()
     result = Utility.GetString(allRowColStr, data => data.ToString(), " ");
     Debug.Assert(expectDataString == result);
 
-    List<Coord> rowColCoords = new();
-    foreach(var rowCol in allRowColStr)
-        rowColCoords.Add(new(rowCol.ToArray()));
-    result = Utility.GetString(rowColCoords, showCoord);
-    Debug.Assert(expect == result);
-
     // Coord.Iccs
     string expectIccsString = "A0 B0 C0 D0 E0 F0 G0 H0 I0 A1 B1 C1 D1 E1 F1 G1 H1 I1 A2 B2 C2 D2 E2 F2 G2 H2 I2 A3 B3 C3 D3 E3 F3 G3 H3 I3 A4 B4 C4 D4 E4 F4 G4 H4 I4 A5 B5 C5 D5 E5 F5 G5 H5 I5 A6 B6 C6 D6 E6 F6 G6 H6 I6 A7 B7 C7 D7 E7 F7 G7 H7 I7 A8 B8 C8 D8 E8 F8 G8 H8 I8 A9 B9 C9 D9 E9 F9 G9 H9 I9 【90】";
     List<string> allIccs = new();
     foreach(var coord in allCoord)
-        allIccs.Add(coord.ICCS);
+        allIccs.Add(coord.Iccs);
     result = Utility.GetString(allIccs, iccs => iccs, " ");
     Debug.Assert(expectIccsString == result);
 
-    List<Coord> iccsCoords = new();
-    foreach(var iccs in allIccs)
-        iccsCoords.Add(new(iccs));
-    result = Utility.GetString(iccsCoords, showCoord);
-    Debug.Assert(expect == result);
-
     // CoordComparer
-    expect = "(9,8)(8,8)(7,8)(6,8)(5,8)(4,8)(3,8)(2,8)(1,8)(0,8)(9,7)(8,7)(7,7)(6,7)(5,7)(4,7)(3,7)(2,7)(1,7)(0,7)(9,6)(8,6)(7,6)(6,6)(5,6)(4,6)(3,6)(2,6)(1,6)(0,6)(9,5)(8,5)(7,5)(6,5)(5,5)(4,5)(3,5)(2,5)(1,5)(0,5)(9,4)(8,4)(7,4)(6,4)(5,4)(4,4)(3,4)(2,4)(1,4)(0,4)(9,3)(8,3)(7,3)(6,3)(5,3)(4,3)(3,3)(2,3)(1,3)(0,3)(9,2)(8,2)(7,2)(6,2)(5,2)(4,2)(3,2)(2,2)(1,2)(0,2)(9,1)(8,1)(7,1)(6,1)(5,1)(4,1)(3,1)(2,1)(1,1)(0,1)(9,0)(8,0)(7,0)(6,0)(5,0)(4,0)(3,0)(2,0)(1,0)(0,0)【90】";
-    iccsCoords.Sort();
-    iccsCoords.Reverse();
-    result = Utility.GetString(iccsCoords, showCoord);
+    expect = "(9,8)(9,7)(9,6)(9,5)(9,4)(9,3)(9,2)(9,1)(9,0)(8,8)(8,7)(8,6)(8,5)(8,4)(8,3)(8,2)(8,1)(8,0)(7,8)(7,7)(7,6)(7,5)(7,4)(7,3)(7,2)(7,1)(7,0)(6,8)(6,7)(6,6)(6,5)(6,4)(6,3)(6,2)(6,1)(6,0)(5,8)(5,7)(5,6)(5,5)(5,4)(5,3)(5,2)(5,1)(5,0)(4,8)(4,7)(4,6)(4,5)(4,4)(4,3)(4,2)(4,1)(4,0)(3,8)(3,7)(3,6)(3,5)(3,4)(3,3)(3,2)(3,1)(3,0)(2,8)(2,7)(2,6)(2,5)(2,4)(2,3)(2,2)(2,1)(2,0)(1,8)(1,7)(1,6)(1,5)(1,4)(1,3)(1,2)(1,1)(1,0)(0,8)(0,7)(0,6)(0,5)(0,4)(0,3)(0,2)(0,1)(0,0)【90】";
+    allCoord.Reverse();
+    result = Utility.GetString(allCoord, showCoord);
     Debug.Assert(expect == result);
 }
 

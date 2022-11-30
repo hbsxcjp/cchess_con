@@ -1,5 +1,3 @@
-using System.Text;
-
 namespace CChess;
 
 enum ChangeType
@@ -13,21 +11,27 @@ enum ChangeType
 
 internal class Coord: IComparable
 {
-    public static readonly Coord Null = new(-1, -1);
     public const string ColChars = "ABCDEFGHI";
-
     public const int RowCount = 10;
     public const int ColCount = 9;
+    public static readonly Coord Null = new(-1, -1);
 
     public readonly int row;
     public readonly int col;
 
-    public Coord(int r, int c) { row = r; col = c; }
-    public Coord(char[] rowCol) : this(int.Parse(rowCol[0].ToString()), int.Parse(rowCol[1].ToString())) { }
-    public Coord(string iccs) : this(int.Parse(iccs[1].ToString()), ColChars.IndexOf(iccs[0])) { }
+    public static List<Coord> CreatCoords()
+    {
+        List<Coord> coords = new(RowCount * ColCount);
+        for(int row = 0;row < RowCount;row++)
+            for(int col = 0;col < ColCount;col++)
+                coords.Add(new(row, col));
+
+        return coords;
+    }
+    private Coord(int r, int c) { row = r; col = c; }
 
     public string RowCol { get { return $"{row}{col}"; } }
-    public string ICCS { get { return $"{ColChars[col]}{row}"; } }
+    public string Iccs { get { return $"{ColChars[col]}{row}"; } }
     public bool IsBottom { get { return (row << 1) < RowCount; } }
 
     public static string GetRowCol(string rowCol, ChangeType ct)
@@ -60,23 +64,13 @@ internal class Coord: IComparable
 
     public static string RowCols(string iccses)
     {
-        StringBuilder builder = new();
-        for(int i = 0;i < iccses.Length;i += 2)
+        System.Text.StringBuilder builder = new();
+        for(int i = 0;i < iccses.Length - 1;i += 2)
             builder.Append($"{iccses[i + 1]}{ColChars.IndexOf(iccses[i])}");
 
         return builder.ToString();
     }
-
-    public static List<(int, int)> GetAllRowCol()
-    {
-        List<(int, int)> coords = new(RowCount * ColCount);
-        for(int row = 0;row < RowCount;row++)
-            for(int col = 0;col < ColCount;col++)
-                coords.Add((row, col));
-
-        return coords;
-    }
-
+    
     int IComparable.CompareTo(object? obj)
     {
         if(obj is not Coord)
@@ -106,23 +100,20 @@ internal class Coord: IComparable
 
 internal class CoordPair
 {
+    public static readonly CoordPair Null = new(Coord.Null, Coord.Null);
+    public const int RowColICCSLength = 4;
+
     public CoordPair(Coord fromCoord, Coord toCoord)
     {
         FromCoord = fromCoord;
         ToCoord = toCoord;
     }
-    public CoordPair(char[] rowCol) : this(new(rowCol[..2]), new(rowCol[2..])) { }
-    public CoordPair(string iccs) : this(new(iccs[..2]), new(iccs[2..])) { }
 
     public Coord FromCoord { get; }
     public Coord ToCoord { get; }
 
     public string RowCol { get { return $"{FromCoord.RowCol}{ToCoord.RowCol}"; } }
-    public string ICCS { get { return FromCoord.ICCS + ToCoord.ICCS; } }
+    public string Iccs { get { return $"{FromCoord.Iccs}{ToCoord.Iccs}"; } }
 
     public override string ToString() => $"[{FromCoord},{ToCoord}]";
-
-    public static readonly CoordPair Null = new(Coord.Null, Coord.Null);
-
-    public const int RowColICCSLength = 4;
 }

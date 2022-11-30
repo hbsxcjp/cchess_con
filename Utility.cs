@@ -24,8 +24,6 @@
 嵌套类和记录
 */
 
-using System.Text;
-
 namespace CChess;
 
 internal class Utility
@@ -33,7 +31,7 @@ internal class Utility
     public delegate string Show<T>(T t);
     public static string GetString<T>(List<T> items, Show<T> show, string split = "")
     {
-        StringBuilder builder = new();
+        System.Text.StringBuilder builder = new();
         foreach(T item in items)
             builder.Append(show(item)).Append(split);
 
