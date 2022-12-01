@@ -5,6 +5,8 @@ namespace CChess;
 
 internal class Aspects
 {
+    private readonly Dictionary<string, Dictionary<string, List<int>>> _aspectDict;
+
     public Aspects() { _aspectDict = new(); }
     public Aspects(string fileName) : this()
     {
@@ -75,34 +77,6 @@ internal class Aspects
         return _aspectDict[findFen].Select(
             rowColValue => (Coord.GetRowCol(rowColValue.Key, findCt), rowColValue.Value)).ToList();
     }
-    override public string ToString()
-    {
-        static string FenDataToString(KeyValuePair<string, Dictionary<string, List<int>>> fenData,
-              ParallelLoopState loop, string subString)
-        {
-            subString += fenData.Key + " [";
-            foreach(var aspectData in fenData.Value)
-            {
-                subString += aspectData.Key + "(";
-                foreach(var value in aspectData.Value)
-                    subString += value.ToString() + ' ';
-
-                subString = subString.TrimEnd() + ") ";
-            }
-
-            return subString.TrimEnd() + "]\n";
-        }
-
-        // 非常有效地提升了速度! 
-        BlockingCollection<string> subStringCollection = new();
-        Parallel.ForEach(
-            _aspectDict,
-            () => "",
-            FenDataToString,
-            (finalSubString) => subStringCollection.Add(finalSubString));
-
-        return string.Concat(subStringCollection);
-    }
 
     private bool Join((string fen, string rowCol) aspect)
     {
@@ -143,6 +117,33 @@ internal class Aspects
         return (false, ChangeType.NoChange, fen);
     }
 
-    private readonly Dictionary<string, Dictionary<string, List<int>>> _aspectDict;
+    override public string ToString()
+    {
+        static string FenDataToString(KeyValuePair<string, Dictionary<string, List<int>>> fenData,
+              ParallelLoopState loop, string subString)
+        {
+            subString += fenData.Key + " [";
+            foreach(var aspectData in fenData.Value)
+            {
+                subString += aspectData.Key + "(";
+                foreach(var value in aspectData.Value)
+                    subString += value.ToString() + ' ';
+
+                subString = subString.TrimEnd() + ") ";
+            }
+
+            return subString.TrimEnd() + "]\n";
+        }
+
+        // 非常有效地提升了速度! 
+        BlockingCollection<string> subStringCollection = new();
+        Parallel.ForEach(
+            _aspectDict,
+            () => "",
+            FenDataToString,
+            (finalSubString) => subStringCollection.Add(finalSubString));
+
+        return string.Concat(subStringCollection);
+    }
 }
 

@@ -6,6 +6,9 @@ namespace CChess;
 
 internal class ManualMove: IEnumerable
 {
+    private readonly Board _board;
+    private readonly Move _rootMove;
+
     public ManualMove()
     {
         _board = new();
@@ -349,30 +352,29 @@ internal class ManualMove: IEnumerable
     private void GoMove(Move move) => (CurMove = move).Done(_board);
 
     private CoordPair GetCoordPair(string pgnText, FileExtType fileExtType)
-    {
-        return fileExtType switch
+        => fileExtType switch
         {
             FileExtType.PGNIccs => _board.GetCoordPairFromIccs(pgnText),
             FileExtType.PGNRowCol => _board.GetCoordPairFromRowCol(pgnText),
             _ => _board.GetCoordPairFromZhstr(pgnText),
         };
-    }
+    
     private string GetPGNText(CoordPair coordPair, FileExtType fileExtType)
-    {
-        return fileExtType switch
+        => fileExtType switch
         {
             FileExtType.PGNIccs => coordPair.Iccs,
             FileExtType.PGNRowCol => coordPair.RowCol,
-            _ => _board.GetZhStr(coordPair),
+            _ => _board.GetZhStrFromCoordPair(coordPair),
         };
-    }
-
-    private readonly Board _board;
-    private readonly Move _rootMove;
 }
 
 internal class ManualMoveEnum: IEnumerator
 {
+    private readonly Queue<Move> _moveQueue;
+    private readonly ManualMove _manualMove;
+    private Move _curMove;
+    private int _id;
+
     public ManualMoveEnum(ManualMove manualMove)
     {
         _manualMove = manualMove;
@@ -423,9 +425,4 @@ internal class ManualMoveEnum: IEnumerator
                 _moveQueue.Enqueue(move);
         }
     }
-
-    private int _id;
-    private Move _curMove;
-    private readonly ManualMove _manualMove;
-    private readonly Queue<Move> _moveQueue;
 }

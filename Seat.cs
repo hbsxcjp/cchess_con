@@ -17,7 +17,7 @@ internal class Seat
         get { return _piece; }
         set
         {
-            _piece.Seat = Seat.Null;
+            _piece.Seat = Null;
 
             value.Seat = this;
             _piece = value;

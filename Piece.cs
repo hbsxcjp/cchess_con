@@ -45,13 +45,30 @@ internal abstract class Piece: IComparable
     abstract public PieceKind Kind { get; }
     abstract public char Char { get; }
     abstract public char Name { get; }
+    virtual public char PrintName { get { return Name; } }
 
-    virtual public char PrintName() => Name;
+    /// <summary>
+    /// 初始棋盘布局面时，棋子可放置的位置
+    /// </summary>
+    /// <param name="board"></param>
+    /// <param name="isBottomColor"></param>
+    /// <returns>棋盘位置坐标的列表</returns>
+    public List<Coord> PutCoord(Board board, bool isBottomColor)
+        => (Kind == PieceKind.Rook || Kind == PieceKind.Cannon || Kind == PieceKind.Knight)
+                ? board.GetAllCoords()
+                : PutRowCols(isBottomColor).Select(rowCol => board[rowCol.row, rowCol.col].Coord).ToList();
 
-    virtual public List<Coord> PutCoord(Board board, bool isBottomColor) => board.GetAllCoords();
+    /// <summary>
+    /// 当前棋盘局面下，棋子可移动位置, 已排除规则不允许行走的位置、同色棋子的位置
+    /// </summary>
+    /// <param name="board">棋盘对象</param>
+    /// <returns>棋盘位置坐标的列表</returns>
+    public List<Coord> MoveCoord(Board board)
+        => MoveRowCols(board).Where(rowCol => board[rowCol.row, rowCol.col].Piece.Color != Color).
+                Select(rowCol => board[rowCol.row, rowCol.col].Coord).ToList();
 
-    // 可移动位置, 排除规则不允许行走的位置、排除同色的位置
-    abstract public List<Coord> MoveCoord(Board board);
+    abstract protected List<(int row, int col)> PutRowCols(bool isBottomColor);
+    abstract protected List<(int row, int col)> MoveRowCols(Board board);
 
     public static Piece[][][] CreatPieces()
     {
@@ -86,13 +103,8 @@ internal abstract class Piece: IComparable
     }
 
     override public string ToString()
-        => $"{(Color == PieceColor.Red ? "红" : (Color == PieceColor.Black ? "黑" : "无"))}{PrintName()}{Char}{Coord.ToString()}";
+        => $"{(Color == PieceColor.Red ? "红" : (Color == PieceColor.Black ? "黑" : "无"))}{PrintName}{Char}{Coord.ToString()}";
 
-    protected List<Coord> GetCoords(Board board, List<(int row, int col)> rowCols)
-        => rowCols.Select(rowCol => board[rowCol.row, rowCol.col].Coord).ToList();
-
-    protected List<Coord> GetCoordsFilterSameColor(Board board, List<(int row, int col)> rowCols)
-        => GetCoords(board, rowCols.Where(rowCol => board[rowCol.row, rowCol.col].Piece.Color != Color).ToList());
 
     public static int GetColorIndex(char ch) => char.IsUpper(ch) ? 0 : 1;
     public static int GetKindIndex(char ch) => ("KABNRCPkabnrcp".IndexOf(ch)) % KindNum;
@@ -115,31 +127,16 @@ internal abstract class Piece: IComparable
         return CompareTo((Piece)obj);
     }
 
-    internal int CompareTo(Piece piece)
-    {
-        return Coord.CompareTo(piece.Coord);
-    }
+    internal int CompareTo(Piece piece) => Coord.CompareTo(piece.Coord);
 
     internal class NullPiece: Piece
     {
         public NullPiece() : base(PieceColor.NoColor) { }
-
-        override public PieceKind Kind
-        {
-            get { return PieceKind.NoKind; }
-        }
-
-        override public char Char
-        {
-            get { return '_'; }
-        }
-
-        override public char Name
-        {
-            get { return '空'; }
-        }
-
-        override public List<Coord> MoveCoord(Board board) => new();
+        override public PieceKind Kind { get { return PieceKind.NoKind; } }
+        override public char Char { get { return '_'; } }
+        override public char Name { get { return '空'; } }
+        override protected List<(int row, int col)> PutRowCols(bool isBottomColor) => new();
+        override protected List<(int row, int col)> MoveRowCols(Board board) => new();
     }
 
 }
@@ -149,24 +146,22 @@ internal class King: Piece
     public King(PieceColor color) : base(color) { }
 
     override public PieceKind Kind { get { return PieceKind.King; } }
-
     override public char Char { get { return Color == PieceColor.Red ? 'K' : 'k'; } }
-
     override public char Name { get { return Color == PieceColor.Red ? '帅' : '将'; } }
 
-    override public List<Coord> PutCoord(Board board, bool isBottom)
+    override protected List<(int row, int col)> PutRowCols(bool isBottomColor)
     {
         List<(int row, int col)> rowCols = new();
-        int minRow = isBottom ? 0 : 7,
-            maxRow = isBottom ? 2 : 9;
+        int minRow = isBottomColor ? 0 : 7,
+            maxRow = isBottomColor ? 2 : 9;
         for(int row = minRow;row <= maxRow;++row)
             for(int col = 3;col <= 5;++col)
                 rowCols.Add((row, col));
 
-        return GetCoords(board, rowCols);
+        return rowCols;
     }
 
-    override public List<Coord> MoveCoord(Board board)
+    override protected List<(int row, int col)> MoveRowCols(Board board)
     {
         List<(int row, int col)> rowCols = new();
         bool isBottom = Coord.IsBottom;
@@ -180,7 +175,7 @@ internal class King: Piece
         if(Row > (isBottom ? 0 : 7))
             rowCols.Add((Row - 1, Col));
 
-        return GetCoordsFilterSameColor(board, rowCols);
+        return rowCols;
     }
 }
 
@@ -189,26 +184,24 @@ internal class Advisor: Piece
     public Advisor(PieceColor color) : base(color) { }
 
     override public PieceKind Kind { get { return PieceKind.Advisor; } }
-
     override public char Char { get { return Color == PieceColor.Red ? 'A' : 'a'; } }
-
     override public char Name { get { return Color == PieceColor.Red ? '仕' : '士'; } }
 
-    override public List<Coord> PutCoord(Board board, bool isBottom)
+    override protected List<(int row, int col)> PutRowCols(bool isBottomColor)
     {
         List<(int row, int col)> rowCols = new();
-        int minRow = isBottom ? 0 : 7,
-            maxRow = isBottom ? 2 : 9;
+        int minRow = isBottomColor ? 0 : 7,
+            maxRow = isBottomColor ? 2 : 9;
 
         for(int row = minRow;row <= maxRow;row += 2)
             for(int col = 3;col <= 5;col += 2)
                 rowCols.Add((row, col));
 
         rowCols.Add((minRow + 1, 4));
-        return GetCoords(board, rowCols);
+        return rowCols;
     }
 
-    override public List<Coord> MoveCoord(Board board)
+    override protected List<(int row, int col)> MoveRowCols(Board board)
     {
         List<(int row, int col)> rowCols = new();
         bool isBottom = Coord.IsBottom;
@@ -223,7 +216,7 @@ internal class Advisor: Piece
             rowCols.Add((Row + 1, Col + 1));
         }
 
-        return GetCoordsFilterSameColor(board, rowCols);
+        return rowCols;
     }
 }
 
@@ -232,27 +225,25 @@ internal class Bishop: Piece
     public Bishop(PieceColor color) : base(color) { }
 
     override public PieceKind Kind { get { return PieceKind.Bishop; } }
-
     override public char Char { get { return Color == PieceColor.Red ? 'B' : 'b'; } }
-
     override public char Name { get { return Color == PieceColor.Red ? '相' : '象'; } }
 
-    override public List<Coord> PutCoord(Board board, bool isBottom)
+    override protected List<(int row, int col)> PutRowCols(bool isBottomColor)
     {
         List<(int row, int col)> rowCols = new();
-        int minRow = isBottom ? 0 : 5,
-            midRow = isBottom ? 2 : 7,
-            maxRow = isBottom ? 4 : 9;
+        int minRow = isBottomColor ? 0 : 5,
+            midRow = isBottomColor ? 2 : 7,
+            maxRow = isBottomColor ? 4 : 9;
         for(int row = minRow;row <= maxRow;row += 4)
             for(int col = 2;col < Coord.ColCount;col += 4)
                 rowCols.Add((row, col));
         for(int col = 0;col < Coord.ColCount;col += 4)
             rowCols.Add((midRow, col));
 
-        return GetCoords(board, rowCols);
+        return rowCols;
     }
 
-    override public List<Coord> MoveCoord(Board board)
+    override protected List<(int row, int col)> MoveRowCols(Board board)
     {
         List<(int row, int col)> rowCols = new();
         List<Coord> coords = new();
@@ -280,7 +271,7 @@ internal class Bishop: Piece
                 AddRowCol(Row - 2, Col + 2);
         }
 
-        return GetCoordsFilterSameColor(board, rowCols);
+        return rowCols;
     }
 }
 
@@ -289,14 +280,12 @@ internal class Knight: Piece
     public Knight(PieceColor color) : base(color) { }
 
     override public PieceKind Kind { get { return PieceKind.Knight; } }
-
     override public char Char { get { return Color == PieceColor.Red ? 'N' : 'n'; } }
-
     override public char Name { get { return '马'; } }
+    override public char PrintName { get { return Color == PieceColor.Red ? Name : '馬'; } }
 
-    override public char PrintName() { return Color == PieceColor.Red ? Name : '馬'; }
-
-    override public List<Coord> MoveCoord(Board board)
+    override protected List<(int row, int col)> PutRowCols(bool isBottomColor) => new();
+    override protected List<(int row, int col)> MoveRowCols(Board board)
     {
         List<(int row, int col)> rowCols = new();
         int Row = Coord.row, Col = Coord.col;
@@ -317,7 +306,7 @@ internal class Knight: Piece
                 rowCols.Add((to.row, to.col));
         }
 
-        return GetCoordsFilterSameColor(board, rowCols);
+        return rowCols;
     }
 }
 
@@ -326,14 +315,12 @@ internal class Rook: Piece
     public Rook(PieceColor color) : base(color) { }
 
     override public PieceKind Kind { get { return PieceKind.Rook; } }
-
     override public char Char { get { return Color == PieceColor.Red ? 'R' : 'r'; } }
-
     override public char Name { get { return '车'; } }
+    override public char PrintName { get { return Color == PieceColor.Red ? Name : '車'; } }
 
-    override public char PrintName() { return Color == PieceColor.Red ? Name : '車'; }
-
-    override public List<Coord> MoveCoord(Board board)
+    override protected List<(int row, int col)> PutRowCols(bool isBottomColor) => new();
+    override protected List<(int row, int col)> MoveRowCols(Board board)
     {
         List<(int row, int col)> rowCols = new();
         int Row = Coord.row, Col = Coord.col;
@@ -359,7 +346,7 @@ internal class Rook: Piece
             if(!AddRowCol(Row, c))
                 break;
 
-        return GetCoordsFilterSameColor(board, rowCols);
+        return rowCols;
     }
 }
 
@@ -368,14 +355,12 @@ internal class Cannon: Piece
     public Cannon(PieceColor color) : base(color) { }
 
     override public PieceKind Kind { get { return PieceKind.Cannon; } }
-
     override public char Char { get { return Color == PieceColor.Red ? 'C' : 'c'; } }
-
     override public char Name { get { return '炮'; } }
+    override public char PrintName { get { return Color == PieceColor.Red ? Name : '砲'; } }
 
-    override public char PrintName() { return Color == PieceColor.Red ? Name : '砲'; }
-
-    override public List<Coord> MoveCoord(Board board)
+    override protected List<(int row, int col)> PutRowCols(bool isBottomColor) => new();
+    override protected List<(int row, int col)> MoveRowCols(Board board)
     {
         List<(int row, int col)> rowCols = new();
         int Row = Coord.row, Col = Coord.col;
@@ -418,7 +403,7 @@ internal class Cannon: Piece
             if(AddCoordToBreak(Row, c))
                 break;
 
-        return GetCoordsFilterSameColor(board, rowCols);
+        return rowCols;
     }
 }
 
@@ -427,30 +412,28 @@ internal class Pawn: Piece
     public Pawn(PieceColor color) : base(color) { }
 
     override public PieceKind Kind { get { return PieceKind.Pawn; } }
-
     override public char Char { get { return Color == PieceColor.Red ? 'P' : 'p'; } }
-
     override public char Name { get { return Color == PieceColor.Red ? '兵' : '卒'; } }
 
-    override public List<Coord> PutCoord(Board board, bool isBottom)
+    override protected List<(int row, int col)> PutRowCols(bool isBottomColor)
     {
         List<(int row, int col)> rowCols = new();
-        int minRow = isBottom ? 3 : 5,
-            maxRow = isBottom ? 4 : 6;
+        int minRow = isBottomColor ? 3 : 5,
+            maxRow = isBottomColor ? 4 : 6;
         for(int row = minRow;row <= maxRow;++row)
             for(int col = 0;col < Coord.ColCount;col += 2)
                 rowCols.Add((row, col));
 
-        minRow = isBottom ? 5 : 0;
-        maxRow = isBottom ? 9 : 4;
+        minRow = isBottomColor ? 5 : 0;
+        maxRow = isBottomColor ? 9 : 4;
         for(int row = minRow;row <= maxRow;++row)
             for(int col = 0;col < Coord.ColCount;++col)
                 rowCols.Add((row, col));
 
-        return GetCoords(board, rowCols);
+        return rowCols;
     }
 
-    override public List<Coord> MoveCoord(Board board)
+    override protected List<(int row, int col)> MoveRowCols(Board board)
     {
         List<(int row, int col)> rowCols = new();
         bool isBottom = Coord.IsBottom,
@@ -470,7 +453,7 @@ internal class Pawn: Piece
         else if(!isBottomColor && Row > 0)
             rowCols.Add((Row - 1, Col));
 
-        return GetCoordsFilterSameColor(board, rowCols);
+        return rowCols;
     }
 }
 

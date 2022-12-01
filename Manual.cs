@@ -16,6 +16,12 @@ internal enum FileExtType
 
 internal class Manual
 {
+    private readonly static List<string> FileExtName = new() { ".XQF", ".cm", ".text", ".pgnrc", ".pgniccs", ".pgnzh" };
+    private const string FEN = "rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR";
+
+    private readonly Dictionary<string, string> _info;
+    private readonly ManualMove _manualMove;
+
     public Manual()
     {
         _info = new();
@@ -49,6 +55,9 @@ internal class Manual
         }
     }
 
+    public ManualMove ManualMove { get { return _manualMove; } }
+    public Dictionary<string, string> Info { get { return _info; } }
+
     public void Write(string fileName)
     {
         FileExtType fileExtType = GetFileExtType(fileName);
@@ -73,9 +82,6 @@ internal class Manual
     }
 
     public List<(string fen, string rowCol)> GetAspects() => _manualMove.GetAspects();
-
-    public ManualMove ManualMove { get { return _manualMove; } }
-    public Dictionary<string, string> Info { get { return _info; } }
     public bool InfoHas(ManualField field) => _info.ContainsKey(Database.GetInfoKey(field));
     public string GetInfoValue(ManualField field) => _info[Database.GetInfoKey(field)];
     public void SetInfoValue(ManualField field, string value) => _info[Database.GetInfoKey(field)] = value;
@@ -417,11 +423,5 @@ internal class Manual
 
         return result;
     }
-
-    private readonly static List<string> FileExtName = new() { ".XQF", ".cm", ".text", ".pgnrc", ".pgniccs", ".pgnzh" };
-    private const string FEN = "rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR";
-
-    private readonly Dictionary<string, string> _info;
-    private readonly ManualMove _manualMove;
 }
 

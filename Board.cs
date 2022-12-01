@@ -8,13 +8,24 @@ namespace CChess;
 
 internal class Board
 {
+    // [Color][Kind][Index]
+    private readonly Piece[][][] _pieces;
+    // [row, col]
+    private readonly Seat[,] _seats;
+
     public Board()
     {
         _pieces = Piece.CreatPieces();
         _seats = Seat.CreatSeats();
+
+        BottomColor = PieceColor.Red;
     }
 
     public PieceColor BottomColor { get; set; }
+
+    public Seat this[int row, int col] { get { return _seats[row, col]; } }
+    public Seat this[Coord coord] { get { return this[coord.row, coord.col]; } }
+
     public bool IsBottomColor(PieceColor color) => BottomColor == color;
 
     public List<Coord> GetAllCoords()
@@ -26,19 +37,7 @@ internal class Board
         return coords;
     }
 
-    public Seat this[int row, int col] { get { return _seats[row, col]; } }
-    public Seat this[Coord coord]
-    {
-        get
-        {
-            return this[coord.row, coord.col];
-        }
-        private set
-        {
-            _seats[coord.row, coord.col] = value;
-        }
-    }
-
+    private Seat GetKingSeat(PieceColor color) => _pieces[(int)color][(int)PieceKind.King][0].Seat;
     public bool IsKilled(PieceColor color)
     {
         Coord kingCoord = GetKingSeat(color).Coord;
@@ -61,7 +60,11 @@ internal class Board
     public bool IsFailed(PieceColor color)
         => LivePieces(color).All(piece => CanMoveCoord(piece.Coord).Count == 0);
 
-    // 可移动位置, 排除将帅对面、被将军的位置
+    /// <summary>
+    /// 可移动位置, 排除将帅对面、被将军的位置
+    /// </summary>
+    /// <param name="fromCoord"></param>
+    /// <returns></returns>
     public List<Coord> CanMoveCoord(Coord fromCoord)
     {
         List<Coord> coords = this[fromCoord].Piece.MoveCoord(this);
@@ -69,7 +72,12 @@ internal class Board
         return coords;
     }
 
-    // 检测是否可移动, 包括直接杀将、移动后将帅未对面、未被将军
+    /// <summary>
+    /// 检测是否可移动, 包括直接杀将、移动后将帅未对面、未被将军
+    /// </summary>
+    /// <param name="fromCoord"></param>
+    /// <param name="toCoord"></param>
+    /// <returns></returns>
     public bool CanMove(Coord fromCoord, Coord toCoord)
     {
         Seat fromSeat = this[fromCoord];
@@ -177,12 +185,16 @@ internal class Board
             row++;
         }
 
-        SetBottomColor();
+        Seat kingSeat = GetKingSeat(PieceColor.Red);
+        Debug.Assert(!kingSeat.IsNull);
+
+        BottomColor = kingSeat.Coord.IsBottom ? PieceColor.Red : PieceColor.Black;
         return true;
     }
+    
     public bool ChangeLayout(ChangeType ct) => SetFEN(GetFEN(GetFEN(), ct));
 
-    public string GetZhStr(CoordPair coordPair)
+    public string GetZhStrFromCoordPair(CoordPair coordPair)
     {
         string zhStr;
         Seat fromSeat = this[coordPair.FromCoord],
@@ -298,8 +310,48 @@ internal class Board
     public CoordPair GetCoordPairFromIccs(string iccs)
     => GetCoordPair(int.Parse(iccs[1].ToString()), Coord.ColChars.IndexOf(iccs[0]),
             int.Parse(iccs[1].ToString()), Coord.ColChars.IndexOf(iccs[0]));
+    
+    public List<Piece> Pieces(PieceColor color)
+    {
+        List<Piece> pieces = new();
+        foreach(var kindPieces in _pieces[(int)color])
+            pieces.AddRange(kindPieces);
 
-    public override string ToString()
+        return pieces;
+    }
+    public List<Piece> LivePieces(PieceColor color) => LivePieces(Pieces(color));
+
+    private List<Piece> LivePieces(PieceColor color, PieceKind kind)
+        => LivePieces(_pieces[(int)color][(int)kind]);
+    private List<Piece> LivePieces(PieceColor color, PieceKind kind, int col)
+        => LivePieces(color, kind).Where(piece => piece.Coord.col == col).ToList();
+    private List<Piece> LivePieces_MultiColPawns(PieceColor color)
+    {
+        List<Piece> pawnPieces = new();
+        Dictionary<int, List<Piece>> colPieces = new();
+        foreach(Piece piece in LivePieces(color, PieceKind.Pawn))
+        {
+            int col = piece.Coord.col;
+            if(!colPieces.ContainsKey(col))
+                colPieces[col] = new();
+
+            colPieces[col].Add(piece);
+        }
+
+        foreach(var pieces in colPieces.Values)
+            if(pieces.Count > 1)
+                pawnPieces.AddRange(pieces);
+
+        return pawnPieces;
+    }
+
+    private static List<Piece> LivePieces(IEnumerable<Piece> pieces)
+        => pieces.Where(piece => !piece.Seat.IsNull).ToList();
+
+    private CoordPair GetCoordPair(int frow, int fcol, int trow, int tcol)
+        => new(this[frow, fcol].Coord, this[trow, tcol].Coord);
+        
+    override public string ToString()
     {
         // 棋盘上边标识字符串
         string[] preStr = {
@@ -341,66 +393,10 @@ internal class Board
 
         foreach(var seat in _seats)
             if(!seat.HasNullPiece)
-                textBlankBoard[Coord.GetDoubleIndex(seat.Coord)] = seat.Piece.PrintName();
+                textBlankBoard[Coord.GetDoubleIndex(seat.Coord)] = seat.Piece.PrintName;
 
         int index = (int)BottomColor;
         return preStr[index] + textBlankBoard.ToString() + sufStr[index];
     }
-
-    public List<Piece> Pieces(PieceColor color)
-    {
-        List<Piece> pieces = new();
-        foreach(var kindPieces in _pieces[(int)color])
-            pieces.AddRange(kindPieces);
-
-        return pieces;
-    }
-    public List<Piece> LivePieces(PieceColor color) => LivePieces(Pieces(color));
-
-    private List<Piece> LivePieces(PieceColor color, PieceKind kind)
-        => LivePieces(_pieces[(int)color][(int)kind]);
-    private List<Piece> LivePieces(PieceColor color, PieceKind kind, int col)
-        => LivePieces(color, kind).Where(piece => piece.Coord.col == col).ToList();
-    private List<Piece> LivePieces_MultiColPawns(PieceColor color)
-    {
-        List<Piece> pawnPieces = new();
-        Dictionary<int, List<Piece>> colPieces = new();
-        foreach(Piece piece in LivePieces(color, PieceKind.Pawn))
-        {
-            int col = piece.Coord.col;
-            if(!colPieces.ContainsKey(col))
-                colPieces[col] = new();
-
-            colPieces[col].Add(piece);
-        }
-
-        foreach(var pieces in colPieces.Values)
-            if(pieces.Count > 1)
-                pawnPieces.AddRange(pieces);
-
-        return pawnPieces;
-    }
-
-    private static List<Piece> LivePieces(IEnumerable<Piece> pieces)
-        => pieces.Where(piece => !piece.Seat.IsNull).ToList();
-
-    private Seat GetKingSeat(PieceColor color) => _pieces[(int)color][(int)PieceKind.King][0].Seat;
-
-    private bool SetBottomColor()
-    {
-        Seat kingSeat = GetKingSeat(PieceColor.Red);
-        Debug.Assert(!kingSeat.IsNull);
-
-        BottomColor = kingSeat.Coord.IsBottom ? PieceColor.Red : PieceColor.Black;
-        return true;
-    }
-
-    private CoordPair GetCoordPair(int frow, int fcol, int trow, int tcol)
-        => new(this[frow, fcol].Coord, this[trow, tcol].Coord);
-
-    // [Color][Kind][Index]
-    private readonly Piece[][][] _pieces;
-    // [row, col]
-    private readonly Seat[,] _seats;
 }
 

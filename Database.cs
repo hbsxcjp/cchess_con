@@ -13,6 +13,10 @@ internal enum ManualField
 }
 internal class Database
 {
+    private static readonly string[] _infoKeys = {
+            "source", "title", "event", "date", "site", "black", "rowCols", "red", "eccoSn", "eccoName", "win",
+            "opening", "writer", "author", "type", "version", "FEN", "moveString" };
+    private readonly string _manualTableName = "manual";
 
     public List<Manual> GetManuals(string condition = "1")
     {
@@ -675,10 +679,5 @@ internal class Database
 
         return connection;
     }
-
-    private static readonly string[] _infoKeys = {
-            "source", "title", "event", "date", "site", "black", "rowCols", "red", "eccoSn", "eccoName", "win",
-            "opening", "writer", "author", "type", "version", "FEN", "moveString" };
-    private readonly string _manualTableName = "manual";
 }
 

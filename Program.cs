@@ -240,7 +240,7 @@ void Test()
     TestPiece();
     TestBoard();
 
-    TestManual();
+    // TestManual();
     TestDatabase();
 
     TestAspect();

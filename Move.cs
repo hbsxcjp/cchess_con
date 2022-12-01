@@ -8,6 +8,8 @@ internal enum VisibleType
 
 internal class Move
 {
+    private List<Move>? _afterMoves;
+
     public Move(CoordPair coordPair, string? remark = null, bool visible = true)
     {
         Before = null;
@@ -18,8 +20,6 @@ internal class Move
         Visible = visible;
         _afterMoves = null;
     }
-
-    public static Move CreateRootMove() { return new(CoordPair.Null); }
 
     public int Id { get; set; }
     public Move? Before { get; set; }
@@ -42,6 +42,9 @@ internal class Move
     }
     public int AfterNum { get { return _afterMoves?.Count ?? 0; } }
     public Piece ToPiece { get; set; }
+    public bool HasAfter { get { return _afterMoves != null; } }
+
+    public static Move CreateRootMove() { return new(CoordPair.Null); }
 
     public void Done(Board board)
     {
@@ -52,8 +55,6 @@ internal class Move
     }
     public void Undo(Board board)
         => board[CoordPair.ToCoord].MoveTo(board[CoordPair.FromCoord], ToPiece);
-
-    public bool HasAfter { get { return _afterMoves != null; } }
 
     public Move AddAfterMove(CoordPair coordPair, string? remark = null, bool visible = true)
     {
@@ -82,10 +83,8 @@ internal class Move
             return _afterMoves;
 
         List<Move> moves = new(_afterMoves);
-        if(vtype == VisibleType.True)
-            moves.RemoveAll(move => !move.Visible);
-        else
-            moves.RemoveAll(move => move.Visible);
+        moves.RemoveAll(move => (vtype == VisibleType.False) == move.Visible);
+
         return moves;
     }
     // 同步变着列表
@@ -99,7 +98,5 @@ internal class Move
 
     override public string ToString()
         => $"{new string('\t', BeforeNum)}{Before?.Id}-{CoordPair}.{Id} {Remark}\n";
-
-    private List<Move>? _afterMoves;
 }
 
