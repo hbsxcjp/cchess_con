@@ -309,7 +309,7 @@ internal class Board
             int.Parse(rowCol[2].ToString()), int.Parse(rowCol[3].ToString()));
     public CoordPair GetCoordPairFromIccs(string iccs)
     => GetCoordPair(int.Parse(iccs[1].ToString()), Coord.ColChars.IndexOf(iccs[0]),
-            int.Parse(iccs[1].ToString()), Coord.ColChars.IndexOf(iccs[0]));
+            int.Parse(iccs[3].ToString()), Coord.ColChars.IndexOf(iccs[2]));
     
     public List<Piece> Pieces(PieceColor color)
     {
